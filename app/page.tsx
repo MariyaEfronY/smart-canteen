@@ -1,7 +1,7 @@
 export default function Home() {
   return (
-    <h1 className="text-3xl font-bold underline">
-      Hello world!
-    </h1>
-  )
+    <main className="bg-background text-foreground min-h-screen flex items-center justify-center">
+      <h1 className="text-4xl font-bold">Campus Canteen 🍔</h1>
+    </main>
+  );
 }
