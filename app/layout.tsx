@@ -1,22 +1,15 @@
-"use client";
-import { ReactNode } from "react";
-import { AuthProvider } from "../lib/authContext";
-
-import Layout from "../components/Layout";
-import "@/styles/globals.css";
+import ClientLayout from "./ClientLayout";
 
 export const metadata = {
   title: "Campus Canteen 🍔",
   description: "Browse menu, order food, and track your order status.",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <Layout>{children}</Layout>
-        </AuthProvider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
