@@ -1,4 +1,5 @@
-import mongoose, { Schema, Document } from "mongoose";
+// models/Item.ts
+import mongoose, { Document, Model } from "mongoose";
 
 export interface IItem extends Document {
   name: string;
@@ -8,12 +9,13 @@ export interface IItem extends Document {
   image?: string;
 }
 
-const ItemSchema = new Schema<IItem>({
+const ItemSchema = new mongoose.Schema<IItem>({
   name: { type: String, required: true },
   description: String,
   price: { type: Number, required: true },
   category: String,
   image: String,
-});
+}, { timestamps: true });
 
-export default mongoose.models.Item || mongoose.model<IItem>("Item", ItemSchema);
+const Item: Model<IItem> = (mongoose.models.Item as Model<IItem>) || mongoose.model<IItem>("Item", ItemSchema);
+export default Item;
