@@ -9,11 +9,11 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 // ---- SIGN ----
 export function signToken(payload: Record<string, unknown>): string {
-  // ✅ explicit cast removes red underline
-  return jwt.sign(payload, JWT_SECRET, {
+  return (jwt.sign as any)(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
-  }) as string;
+  });
 }
+
 
 // ---- PARSE ----
 export function getTokenFromReq(req: NextApiRequest): string | null {
