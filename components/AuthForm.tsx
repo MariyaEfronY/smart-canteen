@@ -209,11 +209,11 @@ export default function AuthForm({ type }: Props) {
                 required: watchRole === "staff" ? "Staff ID is required for staff" : false,
                 pattern: {
                   value: /^[0-9]{2}[A-Z]{3}[0-9]{2,3}$/,
-                  message: "Invalid Staff ID format (example: 23UBC52 or 23UBC512)"
+                  message: "Invalid Staff ID format (example: 23UBC52)"
                 }
               })}
               id="staffId"
-              placeholder="e.g., 23UBC52 or 23UBC512"
+              placeholder="e.g., 23UBC52"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
             />
             {errors.staffId && (
@@ -223,7 +223,7 @@ export default function AuthForm({ type }: Props) {
               </p>
             )}
             <p className="text-gray-500 text-xs mt-1">
-              Format: 23UBC52 or 23UBC512 (Year+Dept+Number) - Required for staff
+              Format: 23UBC52 (Year+Dept+Number) - Required for staff
             </p>
           </div>
         );
@@ -256,7 +256,7 @@ export default function AuthForm({ type }: Props) {
         <>
           <div>
             <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
-              Department (Optional)
+              Department
             </label>
             <input
               {...register("department")}
@@ -268,7 +268,7 @@ export default function AuthForm({ type }: Props) {
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number (Optional)
+              Phone Number
             </label>
             <input
               {...register("phone")}
