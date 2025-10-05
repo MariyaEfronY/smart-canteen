@@ -5,69 +5,62 @@ import User from "@/models/User";
 import { signToken, setTokenCookie } from "@/lib/auth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST")
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== "POST") return res.status(405).end();
+  await dbConnect();
 
   try {
-    await dbConnect();
+    const { name, email, password, role, dno, staffId, department, phone } = req.body;
 
-    const { name, dno, staffId, email, password, role } = req.body;
+    if (!name || !password || !role)
+      return res.status(400).json({ message: "Missing required fields" });
 
-    if (!name || !email || !password || (!dno && !staffId)) {
-      return res.status(400).json({
-        message: "Missing required fields: name, email, password, and either dno or staffId",
-      });
-    }
+    // Validation per role
+    if (role === "student" && !dno)
+      return res.status(400).json({ message: "D.No required for student signup" });
 
-    // ✅ Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { dno }, { staffId }],
-    });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
+    if (role === "staff" && !staffId)
+      return res.status(400).json({ message: "Staff ID required for staff signup" });
 
-    // ✅ Validate staffId format if provided
-    if (staffId && !/^ST[0-9A-Z]{3,}$/.test(staffId)) {
-      return res.status(400).json({ message: "Invalid staffId format (example: ST001 or ST23CS512)" });
-    }
+    if (role === "admin" && !email)
+      return res.status(400).json({ message: "Email required for admin signup" });
 
-    // ✅ Validate dno format if provided
-    if (dno && !/^[0-9]{2}[A-Z]{3}[0-9]{3}$/.test(dno)) {
-      return res.status(400).json({ message: "Invalid D.No format (example: 23UBC512)" });
-    }
+    // Check duplicates
+    const existing = await User.findOne(
+      role === "admin"
+        ? { email }
+        : role === "student"
+        ? { dno }
+        : { staffId }
+    );
+    if (existing) return res.status(400).json({ message: "User already exists" });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password
+    const hashed = await bcrypt.hash(password, 10);
 
-    // ✅ Automatically assign role
-    const userRole = role || (staffId ? "staff" : "student");
-
-    const newUser = await User.create({
+    const user = await User.create({
       name,
       email,
-      password: hashedPassword,
-      dno: dno || null,
-      staffId: staffId || null,
-      role: userRole,
+      password: hashed,
+      role,
+      dno,
+      staffId,
+      department,
+      phone,
     });
 
-    // ✅ Create token and set cookie
-    const token = signToken({ id: newUser._id, role: newUser.role });
+    const token = signToken({ id: user._id, role: user.role });
     setTokenCookie(res, token);
 
-    return res.status(201).json({
+    res.status(201).json({
       message: "Signup successful",
-      user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        dno: newUser.dno,
-        staffId: newUser.staffId,
-      },
+      user: { id: user._id, name: user.name, role: user.role },
     });
-  } catch (error: any) {
-    console.error("Signup Error:", error);
-    return res.status(500).json({ message: "Server error during signup", error: error.message });
-  }
+  } catch (err: any) {
+  console.error("Signup error:", err);
+  res.status(500).json({
+    message: "Server error during signup",
+    error: err.message,
+    stack: err.stack, // 👈 add this for debugging
+  });
+}
 }

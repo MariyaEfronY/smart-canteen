@@ -13,6 +13,8 @@ interface AuthFormData {
   email?: string;
   password: string;
   role?: "student" | "staff" | "admin";
+  department?: string;
+  phone?: string;
 }
 
 interface ApiError {
@@ -28,7 +30,7 @@ type Props = { type: "login" | "signup" };
 
 export default function AuthForm({ type }: Props) {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<AuthFormData>();
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<AuthFormData>();
   const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -44,7 +46,29 @@ export default function AuthForm({ type }: Props) {
     setIsLoading(true);
     try {
       const url = type === "login" ? "/auth/login" : "/auth/signup";
-      await api.post(url, data);
+      
+      // For login, ensure we send the correct identifier based on role
+      if (type === "login") {
+        const loginData: any = {
+          password: data.password,
+          role: data.role
+        };
+
+        // Add the correct identifier based on role
+        if (data.role === "student") {
+          loginData.dno = data.dno;
+        } else if (data.role === "staff") {
+          loginData.staffId = data.staffId;
+        } else if (data.role === "admin") {
+          loginData.email = data.email;
+        }
+
+        await api.post(url, loginData);
+      } else {
+        // For signup, send all data as is
+        await api.post(url, data);
+      }
+      
       router.push(type === "login" ? "/dashboard" : "/login");
     } catch (err: unknown) {
       const error = err as ApiError;
@@ -54,30 +78,90 @@ export default function AuthForm({ type }: Props) {
     }
   };
 
-  // Determine which identifier to use for login
+  // Get identifier field based on selected role for LOGIN
   const getLoginIdentifier = () => {
     if (type === "login") {
-      return (
-        <div>
-          <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
-            D.No or Staff ID
-          </label>
-          <input
-            {...register("dno", { 
-              required: "D.No or Staff ID is required",
-            })}
-            id="identifier"
-            placeholder="Enter your D.No or Staff ID"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
-          />
-          {errors.dno && (
-            <p className="text-red-500 text-sm mt-2 flex items-center">
-              <span>⚠️</span>
-              <span className="ml-1">{errors.dno.message}</span>
+      if (watchRole === "student") {
+        return (
+          <div>
+            <label htmlFor="dno" className="block text-sm font-medium text-gray-700 mb-2">
+              Department Number (D.No) *
+            </label>
+            <input
+              {...register("dno", { 
+                required: watchRole === "student" ? "D.No is required for students" : false,
+              })}
+              id="dno"
+              placeholder="Enter your D.No (e.g., 23UBC512)"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.dno && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.dno.message}</span>
+              </p>
+            )}
+          </div>
+        );
+      } else if (watchRole === "staff") {
+        return (
+          <div>
+            <label htmlFor="staffId" className="block text-sm font-medium text-gray-700 mb-2">
+              Staff ID *
+            </label>
+            <input
+              {...register("staffId", { 
+                required: watchRole === "staff" ? "Staff ID is required for staff" : false,
+              })}
+              id="staffId"
+              placeholder="Enter your Staff ID (e.g., 23UBC52)"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.staffId && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.staffId.message}</span>
+              </p>
+            )}
+          </div>
+        );
+      } else if (watchRole === "admin") {
+        return (
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address *
+            </label>
+            <input
+              {...register("email", { 
+                required: watchRole === "admin" ? "Email is required for admin" : false,
+                pattern: {
+                  value: /^\S+@\S+$/i,
+                  message: "Invalid email address"
+                }
+              })}
+              id="email"
+              placeholder="Enter your email address"
+              type="email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.email.message}</span>
+              </p>
+            )}
+          </div>
+        );
+      } else {
+        // No role selected yet
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-blue-800 text-sm text-center">
+              Please select your account type to see the required login field
             </p>
-          )}
-        </div>
-      );
+          </div>
+        );
+      }
     }
     return null;
   };
@@ -114,7 +198,7 @@ export default function AuthForm({ type }: Props) {
             </p>
           </div>
         );
-      } else if (watchRole === "staff" || watchRole === "admin") {
+      } else if (watchRole === "staff") {
         return (
           <div>
             <label htmlFor="staffId" className="block text-sm font-medium text-gray-700 mb-2">
@@ -122,14 +206,14 @@ export default function AuthForm({ type }: Props) {
             </label>
             <input
               {...register("staffId", { 
-                required: (watchRole === "staff" || watchRole === "admin") ? "Staff ID is required" : false,
+                required: watchRole === "staff" ? "Staff ID is required for staff" : false,
                 pattern: {
-                  value: /^ST[0-9A-Z]{3,}$/,
-                  message: "Invalid Staff ID format (example: ST001 or ST23CS512)"
+                  value: /^[0-9]{2}[A-Z]{3}[0-9]{2,3}$/,
+                  message: "Invalid Staff ID format (example: 23UBC52 or 23UBC512)"
                 }
               })}
               id="staffId"
-              placeholder="e.g., ST001"
+              placeholder="e.g., 23UBC52 or 23UBC512"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
             />
             {errors.staffId && (
@@ -139,7 +223,15 @@ export default function AuthForm({ type }: Props) {
               </p>
             )}
             <p className="text-gray-500 text-xs mt-1">
-              Format: ST followed by numbers/letters - Required for staff/admin
+              Format: 23UBC52 or 23UBC512 (Year+Dept+Number) - Required for staff
+            </p>
+          </div>
+        );
+      } else if (watchRole === "admin") {
+        return (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800 text-sm text-center">
+              💼 Admin accounts require only email authentication. No additional ID needed.
             </p>
           </div>
         );
@@ -153,6 +245,40 @@ export default function AuthForm({ type }: Props) {
           </div>
         );
       }
+    }
+    return null;
+  };
+
+  // Additional fields for signup
+  const getAdditionalSignupFields = () => {
+    if (type === "signup") {
+      return (
+        <>
+          <div>
+            <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
+              Department (Optional)
+            </label>
+            <input
+              {...register("department")}
+              id="department"
+              placeholder="Enter your department"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number (Optional)
+            </label>
+            <input
+              {...register("phone")}
+              id="phone"
+              placeholder="Enter your phone number"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+          </div>
+        </>
+      );
     }
     return null;
   };
@@ -250,8 +376,8 @@ export default function AuthForm({ type }: Props) {
             </h2>
             <p className="text-gray-600">
               {type === "login" 
-                ? "Sign in with your D.No or Staff ID" 
-                : "Register as Student or Staff member"
+                ? "Sign in with your credentials" 
+                : "Register based on your role"
               }
             </p>
           </div>
@@ -261,6 +387,29 @@ export default function AuthForm({ type }: Props) {
             onSubmit={handleSubmit(onSubmit)}
             className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6"
           >
+            {/* Role Selection - Required for BOTH login and signup */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                I am a *
+              </label>
+              <select 
+                {...register("role", { required: "Please select your account type" })} 
+                id="role"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
+              >
+                <option value="">Select your role</option>
+                <option value="student">🎓 Student</option>
+                <option value="staff">👨‍🏫 Staff</option>
+                <option value="admin">👨‍💼 Admin</option>
+              </select>
+              {errors.role && (
+                <p className="text-red-500 text-sm mt-2 flex items-center">
+                  <span>⚠️</span>
+                  <span className="ml-1">{errors.role.message}</span>
+                </p>
+              )}
+            </div>
+
             {type === "signup" && (
               <>
                 <div>
@@ -283,11 +432,11 @@ export default function AuthForm({ type }: Props) {
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
+                    Email Address {watchRole === "admin" ? "*" : "(Optional)"}
                   </label>
                   <input
                     {...register("email", { 
-                      required: "Email is required",
+                      required: watchRole === "admin" ? "Email is required for admin" : false,
                       pattern: {
                         value: /^\S+@\S+$/i,
                         message: "Invalid email address"
@@ -304,36 +453,20 @@ export default function AuthForm({ type }: Props) {
                       <span className="ml-1">{errors.email.message}</span>
                     </p>
                   )}
-                </div>
-
-                {/* Account Type Selection */}
-                <div>
-                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-                    Account Type *
-                  </label>
-                  <select 
-                    {...register("role", { required: "Please select your account type" })} 
-                    id="role"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
-                  >
-                    <option value="">Select your role</option>
-                    <option value="student">🎓 Student</option>
-                    <option value="staff">👨‍🏫 Staff</option>
-                    <option value="admin">👨‍💼 Admin</option>
-                  </select>
-                  {errors.role && (
-                    <p className="text-red-500 text-sm mt-2 flex items-center">
-                      <span>⚠️</span>
-                      <span className="ml-1">{errors.role.message}</span>
+                  {watchRole !== "admin" && (
+                    <p className="text-gray-500 text-xs mt-1">
+                      Optional for students and staff
                     </p>
                   )}
                 </div>
               </>
             )}
 
-            {/* Identifier Fields */}
-            {getLoginIdentifier()}
-            {getSignupIdentifier()}
+            {/* Identifier Fields - Different for login vs signup */}
+            {type === "login" ? getLoginIdentifier() : getSignupIdentifier()}
+
+            {/* Additional fields for signup */}
+            {getAdditionalSignupFields()}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">

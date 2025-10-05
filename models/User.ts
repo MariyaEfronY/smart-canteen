@@ -1,45 +1,47 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
-const userSchema = new Schema(
+export interface IUser extends Document {
+  name: string;
+  email?: string;
+  password: string;
+  role: "student" | "staff" | "admin";
+  dno?: string;
+  staffId?: string;
+  department?: string;
+  phone?: string;
+}
+
+const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: {
+      type: String,
+      required: function (this: any) {
+        return this.role === "admin";
+      },
+      unique: false,
+      sparse: true,
+    },
     password: { type: String, required: true },
-
-    // Student ID (e.g. 23UBC512)
+    role: { type: String, enum: ["student", "staff", "admin"], required: true },
     dno: {
       type: String,
       required: function () {
         return this.role === "student";
       },
-      match: [
-        /^[0-9]{2}[A-Z]{3}[0-9]{3}$/,
-        "Invalid D.No format (e.g., 23UBC512)",
-      ],
+      match: [/^[0-9]{2}[A-Z]{3}[0-9]{3}$/, "Invalid D.No format"],
     },
-
-    // Staff ID (e.g. ST23CS512)
     staffId: {
       type: String,
       required: function () {
         return this.role === "staff";
       },
-      match: [
-        /^ST[0-9A-Z]{3,}$/,
-        "Invalid Staff ID format (e.g., ST23CS512)",
-      ],
+      match: [/^[0-9]{2}[A-Z]{3}[0-9]{2,3}$/, "Invalid Staff ID format"],
     },
-
-    role: {
-      type: String,
-      enum: ["student", "staff", "admin"], // ✅ Added staff
-      default: "student",
-    },
+    department: { type: String },
+    phone: { type: String },
   },
   { timestamps: true }
 );
 
-// ✅ Ensure mongoose doesn’t recompile models
-const User = models.User || model("User", userSchema);
-
-export default User;
+export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
