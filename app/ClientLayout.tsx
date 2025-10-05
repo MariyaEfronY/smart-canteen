@@ -3,7 +3,11 @@ import { ReactNode } from "react";
 import { AuthProvider } from "@/lib/authContext";
 import Layout from "@/components/Layout";
 
-export default function ClientLayout({ children }: { children: ReactNode }) {
+interface ClientLayoutProps {
+  children: ReactNode;
+}
+
+export default function ClientLayout({ children }: ClientLayoutProps) {
   return (
     <AuthProvider>
       <Layout>{children}</Layout>
