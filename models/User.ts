@@ -1,19 +1,19 @@
-// models/User.ts
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
-export interface IUser extends Document {
-  name: string;
-  email: string;
-  password: string;
-  role: "student" | "admin";
-}
+const UserSchema = new Schema(
+  {
+    name: { type: String, required: true },
+    dno: {
+      type: String,
+      required: true,
+      unique: true,
+      match: [/^[0-9]{2}[A-Z]{3}[0-9]{3}$/, "Invalid D.No format (e.g., 23UBC512)"],
+    },
+    email: { type: String, required: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["student", "admin"], default: "student" },
+  },
+  { timestamps: true }
+);
 
-const UserSchema = new Schema<IUser>({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ["student", "admin"], default: "student" },
-});
-
-export default mongoose.models.User ||
-  mongoose.model<IUser>("User", UserSchema);
+export default models.User || model("User", UserSchema);

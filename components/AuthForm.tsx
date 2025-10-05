@@ -7,7 +7,8 @@ import { useState } from "react";
 // Define proper TypeScript interfaces
 interface AuthFormData {
   name?: string;
-  email: string;
+  dno: string;
+  email?: string;
   password: string;
   role?: "student" | "admin";
 }
@@ -58,8 +59,8 @@ export default function AuthForm({ type }: Props) {
           </h2>
           <p className="text-gray-600">
             {type === "login" 
-              ? "Sign in to continue to your account" 
-              : "Join us and start ordering delicious meals"
+              ? "Sign in with your D.No and password" 
+              : "Register with your details to get started"
             }
           </p>
         </div>
@@ -70,46 +71,78 @@ export default function AuthForm({ type }: Props) {
           className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6"
         >
           {type === "signup" && (
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
-              <input
-                {...register("name", { required: type === "signup" ? "Name is required" : false })}
-                id="name"
-                placeholder="Enter your full name"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
-              />
-              {errors.name && (
-                <p className="text-red-500 text-sm mt-2 flex items-center">
-                  <span>⚠️</span>
-                  <span className="ml-1">{errors.name.message}</span>
-                </p>
-              )}
-            </div>
+            <>
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <input
+                  {...register("name", { required: type === "signup" ? "Name is required" : false })}
+                  id="name"
+                  placeholder="Enter your full name"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-sm mt-2 flex items-center">
+                    <span>⚠️</span>
+                    <span className="ml-1">{errors.name.message}</span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  {...register("email", { 
+                    required: type === "signup" ? "Email is required" : false,
+                    pattern: {
+                      value: /^\S+@\S+$/i,
+                      message: "Invalid email address"
+                    }
+                  })}
+                  id="email"
+                  placeholder="Enter your email"
+                  type="email"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                />
+                {errors.email && (
+                  <p className="text-red-500 text-sm mt-2 flex items-center">
+                    <span>⚠️</span>
+                    <span className="ml-1">{errors.email.message}</span>
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
+          {/* D.No Field - Required for both login and signup */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
+            <label htmlFor="dno" className="block text-sm font-medium text-gray-700 mb-2">
+              Department Number (D.No)
             </label>
             <input
-              {...register("email", { 
-                required: "Email is required",
+              {...register("dno", { 
+                required: "D.No is required",
                 pattern: {
-                  value: /^\S+@\S+$/i,
-                  message: "Invalid email address"
+                  value: /^[A-Za-z0-9\-_]+$/,
+                  message: "Please enter a valid D.No"
                 }
               })}
-              id="email"
-              placeholder="Enter your email"
-              type="email"
+              id="dno"
+              placeholder={type === "login" ? "Enter your D.No" : "Enter your department number"}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
             />
-            {errors.email && (
+            {errors.dno && (
               <p className="text-red-500 text-sm mt-2 flex items-center">
                 <span>⚠️</span>
-                <span className="ml-1">{errors.email.message}</span>
+                <span className="ml-1">{errors.dno.message}</span>
+              </p>
+            )}
+            {type === "signup" && (
+              <p className="text-gray-500 text-xs mt-1">
+                Your unique department identification number
               </p>
             )}
           </div>
