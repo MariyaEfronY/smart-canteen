@@ -7,8 +7,10 @@ import { ReactNode } from "react";
 interface User {
   id: string;
   name: string;
-  dno: string;
-  role: "student" | "admin";
+  email: string;
+  dno?: string;
+  staffId?: string;
+  role: "student" | "staff" | "admin";
 }
 
 interface AuthContextType {
@@ -27,6 +29,42 @@ export default function Layout({ children }: { children: ReactNode }) {
       router.push("/");
     } catch (error) {
       console.error("Logout failed:", error);
+    }
+  };
+
+  const getUserIdentifier = () => {
+    if (!user) return null;
+    return user.dno || user.staffId || "No ID";
+  };
+
+  const getRoleDisplay = (role: string) => {
+    switch (role) {
+      case "student": return "🎓 Student";
+      case "staff": return "👨‍🏫 Staff";
+      case "admin": return "👨‍💼 Admin";
+      default: return role;
+    }
+  };
+
+  const getDashboardLink = () => {
+    if (!user) return null;
+    
+    switch (user.role) {
+      case "student": return "/dashboard";
+      case "staff": return "/staff";
+      case "admin": return "/admin";
+      default: return "/dashboard";
+    }
+  };
+
+  const getDashboardLabel = () => {
+    if (!user) return null;
+    
+    switch (user.role) {
+      case "student": return "🎓 Dashboard";
+      case "staff": return "👨‍🏫 Staff Panel";
+      case "admin": return "👨‍💼 Admin Panel";
+      default: return "Dashboard";
     }
   };
 
@@ -60,21 +98,13 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </>
               ) : (
                 <>
-                  {/* Navigation based on role */}
-                  {user.role === "student" && (
+                  {/* Role-based Navigation */}
+                  {getDashboardLink() && (
                     <Link 
-                      href="/dashboard" 
+                      href={getDashboardLink()!}
                       className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
                     >
-                      🎓 Dashboard
-                    </Link>
-                  )}
-                  {user.role === "admin" && (
-                    <Link 
-                      href="/admin" 
-                      className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
-                    >
-                      👨‍💼 Admin Panel
+                      {getDashboardLabel()}
                     </Link>
                   )}
                   
@@ -85,7 +115,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                         {user.name}
                       </p>
                       <p className="text-xs text-gray-500">
-                        D.No: {user.dno} • {user.role === 'student' ? 'Student' : 'Admin'}
+                        {getUserIdentifier()} • {getRoleDisplay(user.role)}
                       </p>
                     </div>
                     
@@ -113,7 +143,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="text-center text-gray-500 text-sm">
-            <p>© 2024 Campus Canteen. Department Number based authentication system.</p>
+            <p>© 2024 Campus Canteen. Multi-role authentication with D.No and Staff ID support.</p>
           </div>
         </div>
       </footer>

@@ -7,10 +7,11 @@ import { useState } from "react";
 // Define proper TypeScript interfaces
 interface AuthFormData {
   name?: string;
-  dno: string;
+  dno?: string;
+  staffId?: string;
   email?: string;
   password: string;
-  role?: "student" | "admin";
+  role?: "student" | "staff" | "admin";
 }
 
 interface ApiError {
@@ -26,8 +27,10 @@ type Props = { type: "login" | "signup" };
 
 export default function AuthForm({ type }: Props) {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors } } = useForm<AuthFormData>();
+  const { register, handleSubmit, formState: { errors }, watch } = useForm<AuthFormData>();
   const [isLoading, setIsLoading] = useState(false);
+  
+  const watchRole = watch("role");
 
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
@@ -41,6 +44,109 @@ export default function AuthForm({ type }: Props) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Determine which identifier to use for login
+  const getLoginIdentifier = () => {
+    if (type === "login") {
+      return (
+        <div>
+          <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
+            D.No or Staff ID
+          </label>
+          <input
+            {...register("dno", { 
+              required: "D.No or Staff ID is required",
+            })}
+            id="identifier"
+            placeholder="Enter your D.No or Staff ID"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+          />
+          {errors.dno && (
+            <p className="text-red-500 text-sm mt-2 flex items-center">
+              <span>⚠️</span>
+              <span className="ml-1">{errors.dno.message}</span>
+            </p>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // For signup, show identifier field based on selected role
+  const getSignupIdentifier = () => {
+    if (type === "signup") {
+      if (watchRole === "student") {
+        return (
+          <div>
+            <label htmlFor="dno" className="block text-sm font-medium text-gray-700 mb-2">
+              Department Number (D.No) *
+            </label>
+            <input
+              {...register("dno", { 
+                required: watchRole === "student" ? "D.No is required for students" : false,
+                pattern: {
+                  value: /^[0-9]{2}[A-Z]{3}[0-9]{3}$/,
+                  message: "Invalid D.No format (example: 23UBC512)"
+                }
+              })}
+              id="dno"
+              placeholder="e.g., 23UBC512"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.dno && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.dno.message}</span>
+              </p>
+            )}
+            <p className="text-gray-500 text-xs mt-1">
+              Format: 23UBC512 (Year+Dept+Number) - Required for students
+            </p>
+          </div>
+        );
+      } else if (watchRole === "staff" || watchRole === "admin") {
+        return (
+          <div>
+            <label htmlFor="staffId" className="block text-sm font-medium text-gray-700 mb-2">
+              Staff ID *
+            </label>
+            <input
+              {...register("staffId", { 
+                required: (watchRole === "staff" || watchRole === "admin") ? "Staff ID is required" : false,
+                pattern: {
+                  value: /^ST[0-9A-Z]{3,}$/,
+                  message: "Invalid Staff ID format (example: ST001 or ST23CS512)"
+                }
+              })}
+              id="staffId"
+              placeholder="e.g., ST001"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.staffId && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.staffId.message}</span>
+              </p>
+            )}
+            <p className="text-gray-500 text-xs mt-1">
+              Format: ST followed by numbers/letters - Required for staff/admin
+            </p>
+          </div>
+        );
+      } else {
+        // No role selected yet
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-blue-800 text-sm text-center">
+              Please select your account type above to see the required identifier field
+            </p>
+          </div>
+        );
+      }
+    }
+    return null;
   };
 
   return (
@@ -59,8 +165,8 @@ export default function AuthForm({ type }: Props) {
           </h2>
           <p className="text-gray-600">
             {type === "login" 
-              ? "Sign in with your D.No and password" 
-              : "Register with your details to get started"
+              ? "Sign in with your D.No or Staff ID" 
+              : "Register as Student or Staff member"
             }
           </p>
         </div>
@@ -74,10 +180,10 @@ export default function AuthForm({ type }: Props) {
             <>
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
+                  Full Name *
                 </label>
                 <input
-                  {...register("name", { required: type === "signup" ? "Name is required" : false })}
+                  {...register("name", { required: "Name is required" })}
                   id="name"
                   placeholder="Enter your full name"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
@@ -92,11 +198,11 @@ export default function AuthForm({ type }: Props) {
 
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                  Email Address *
                 </label>
                 <input
                   {...register("email", { 
-                    required: type === "signup" ? "Email is required" : false,
+                    required: "Email is required",
                     pattern: {
                       value: /^\S+@\S+$/i,
                       message: "Invalid email address"
@@ -114,42 +220,39 @@ export default function AuthForm({ type }: Props) {
                   </p>
                 )}
               </div>
+
+              {/* Account Type Selection - Moved up for better flow */}
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                  Account Type *
+                </label>
+                <select 
+                  {...register("role", { required: "Please select your account type" })} 
+                  id="role"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
+                >
+                  <option value="">Select your role</option>
+                  <option value="student">🎓 Student</option>
+                  <option value="staff">👨‍🏫 Staff</option>
+                  <option value="admin">👨‍💼 Admin</option>
+                </select>
+                {errors.role && (
+                  <p className="text-red-500 text-sm mt-2 flex items-center">
+                    <span>⚠️</span>
+                    <span className="ml-1">{errors.role.message}</span>
+                  </p>
+                )}
+              </div>
             </>
           )}
 
-          {/* D.No Field - Required for both login and signup */}
-          <div>
-            <label htmlFor="dno" className="block text-sm font-medium text-gray-700 mb-2">
-              Department Number (D.No)
-            </label>
-            <input
-              {...register("dno", { 
-                required: "D.No is required",
-                pattern: {
-                  value: /^[A-Za-z0-9\-_]+$/,
-                  message: "Please enter a valid D.No"
-                }
-              })}
-              id="dno"
-              placeholder={type === "login" ? "Enter your D.No" : "Enter your department number"}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
-            />
-            {errors.dno && (
-              <p className="text-red-500 text-sm mt-2 flex items-center">
-                <span>⚠️</span>
-                <span className="ml-1">{errors.dno.message}</span>
-              </p>
-            )}
-            {type === "signup" && (
-              <p className="text-gray-500 text-xs mt-1">
-                Your unique department identification number
-              </p>
-            )}
-          </div>
+          {/* Identifier Fields */}
+          {getLoginIdentifier()}
+          {getSignupIdentifier()}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
+              Password *
             </label>
             <input
               {...register("password", { 
@@ -171,22 +274,6 @@ export default function AuthForm({ type }: Props) {
               </p>
             )}
           </div>
-
-          {type === "signup" && (
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-                I am a
-              </label>
-              <select 
-                {...register("role")} 
-                id="role"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
-              >
-                <option value="student">🎓 Student</option>
-                <option value="admin">👨‍💼 Admin</option>
-              </select>
-            </div>
-          )}
 
           <button
             type="submit"
@@ -222,7 +309,7 @@ export default function AuthForm({ type }: Props) {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-gray-500 text-sm">
-            © 2024 Campus Canteen. Serving delicious meals with ❤️
+            © 2024 Campus Canteen. Role-based authentication system.
           </p>
         </div>
       </div>
