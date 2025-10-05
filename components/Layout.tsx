@@ -83,6 +83,19 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="flex items-center space-x-6">
               {!user ? (
                 <>
+                  {/* Navigation for logged-out users */}
+                  <Link 
+                    href="/" 
+                    className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
+                  >
+                    Home
+                  </Link>
+                  <Link 
+                    href="/contact" 
+                    className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
+                  >
+                    Contact
+                  </Link>
                   <Link 
                     href="/login" 
                     className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
@@ -98,6 +111,20 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </>
               ) : (
                 <>
+                  {/* Navigation for logged-in users */}
+                  <Link 
+                    href="/" 
+                    className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
+                  >
+                    Home
+                  </Link>
+                  <Link 
+                    href="/contact" 
+                    className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
+                  >
+                    Contact
+                  </Link>
+                  
                   {/* Role-based Navigation */}
                   {getDashboardLink() && (
                     <Link 
@@ -143,7 +170,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="text-center text-gray-500 text-sm">
-            <p>- © 2024 Campus Canteen. Department Number based authentication system.</p>
+            <p>© 2024 Campus Canteen. Department Number based authentication system.</p>
           </div>
         </div>
       </footer>
