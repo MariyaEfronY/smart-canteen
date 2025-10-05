@@ -143,7 +143,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="text-center text-gray-500 text-sm">
-            <p>© 2024 Campus Canteen. Multi-role authentication with D.No and Staff ID support.</p>
+            <p>- © 2024 Campus Canteen. Department Number based authentication system.</p>
           </div>
         </div>
       </footer>
