@@ -63,13 +63,29 @@ export default function AuthForm({ type }: Props) {
           loginData.email = data.email;
         }
 
-        await api.post(url, loginData);
+        const response = await api.post(url, loginData);
+        
+        // Redirect based on role after login
+        if (response.data.user?.role === "admin") {
+          router.push("/admin");
+        } else if (response.data.user?.role === "staff") {
+          router.push("/staff");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         // For signup, send all data as is
-        await api.post(url, data);
+        const response = await api.post(url, data);
+        
+        // Redirect based on role after signup
+        if (data.role === "admin") {
+          router.push("/admin");
+        } else if (data.role === "staff") {
+          router.push("/staff");
+        } else {
+          router.push("/dashboard");
+        }
       }
-      
-      router.push(type === "login" ? "/dashboard" : "/login");
     } catch (err: unknown) {
       const error = err as ApiError;
       alert(error.response?.data?.message || error.message || "Something went wrong");
@@ -249,26 +265,34 @@ export default function AuthForm({ type }: Props) {
     return null;
   };
 
-  // Additional fields for signup
+  // Additional fields for signup - Hide for admin
   const getAdditionalSignupFields = () => {
-    if (type === "signup") {
+    if (type === "signup" && watchRole !== "admin") {
       return (
         <>
           <div>
             <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
-              Department
+              Department {watchRole === "student" ? "*" : "(Optional)"}
             </label>
             <input
-              {...register("department")}
+              {...register("department", { 
+                required: watchRole === "student" ? "Department is required for students" : false 
+              })}
               id="department"
               placeholder="Enter your department"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
             />
+            {errors.department && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.department.message}</span>
+              </p>
+            )}
           </div>
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
+              Phone Number (Optional)
             </label>
             <input
               {...register("phone")}
@@ -465,7 +489,7 @@ export default function AuthForm({ type }: Props) {
             {/* Identifier Fields - Different for login vs signup */}
             {type === "login" ? getLoginIdentifier() : getSignupIdentifier()}
 
-            {/* Additional fields for signup */}
+            {/* Additional fields for signup - Hidden for admin */}
             {getAdditionalSignupFields()}
 
             <div>
