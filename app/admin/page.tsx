@@ -565,23 +565,30 @@ export default function AdminDashboard() {
               </div>
 
               {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select category</option>
-                  <option value="appetizers">Appetizers</option>
-                  <option value="main-course">Main Course</option>
-                  <option value="desserts">Desserts</option>
-                  <option value="beverages">Beverages</option>
-                  <option value="snacks">Snacks</option>
-                </select>
-              </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+  <select
+    name="category"
+    value={formData.category}
+    onChange={handleInputChange}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+    required
+  >
+    <option value="">🍽️ Select category</option>
+    <option value="breakfast">🍳 Breakfast</option>
+    <option value="main-course">🍛 Main Course</option>
+    <option value="snacks">🥪 Snacks</option>
+    <option value="beverages">☕ Beverages</option>
+    <option value="desserts">🧁 Desserts</option>
+    <option value="fast-food">🍔 Fast Food</option>
+    <option value="south-indian">🍲 South Indian</option>
+    <option value="north-indian">🥘 North Indian</option>
+    <option value="chinese">🍜 Chinese</option>
+    <option value="bakery">🍩 Bakery</option>
+    <option value="healthy">🥗 Healthy Options</option>
+  </select>
+</div>
+
 
               {/* Status */}
               <div>
