@@ -8,7 +8,7 @@ import Item from "@/models/Item";
 
 export const config = {
   api: {
-    bodyParser: false, // ⛔ disable Next.js body parser
+    bodyParser: false,
   },
 };
 
@@ -20,35 +20,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const form = formidable({ multiples: false, keepExtensions: true });
 
   form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error("Form parse error:", err);
-      return res.status(400).json({ message: "Form parse error", error: err });
-    }
+    if (err) return res.status(400).json({ message: "Form parse error", error: err });
 
     try {
       const name = fields.name?.toString();
       const description = fields.description?.toString();
       const price = parseFloat(fields.price?.toString() || "0");
       const category = fields.category?.toString();
+      const status = fields.status?.toString() || "available";
 
       const imageField = files.image;
       const file: File | undefined = Array.isArray(imageField) ? imageField[0] : imageField;
 
-      if (!file) {
-        return res.status(400).json({ message: "Image file is required" });
-      }
+      if (!file) return res.status(400).json({ message: "Image file is required" });
 
-      // ✅ Read the file buffer manually
       const data = fs.readFileSync(file.filepath);
 
-      // ✅ Upload file buffer to Cloudinary
       const upload = cloudinary.uploader.upload_stream(
         { folder: "menu_items" },
         async (error, result) => {
-          if (error) {
-            console.error("Cloudinary upload error:", error);
-            return res.status(500).json({ message: "Cloudinary upload failed", error });
-          }
+          if (error) return res.status(500).json({ message: "Cloudinary upload failed", error });
 
           const newItem = await Item.create({
             name,
@@ -63,10 +54,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       );
 
-      // ✅ Write file buffer to Cloudinary stream
       upload.end(data);
     } catch (error) {
-      console.error("Error uploading item:", error);
       res.status(500).json({ message: "Error uploading item", error });
     }
   });

@@ -269,19 +269,31 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <select
-                            value={item.status}
-                            onChange={(e) => handleStatusChange(item._id, e.target.value)}
-                            className={`px-2 py-1 text-xs font-semibold rounded-full border-0 focus:ring-2 focus:ring-green-500 ${
-                              item.status === "available" 
-                                ? "bg-green-100 text-green-800" 
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            <option value="available">Available</option>
-                            <option value="unavailable">Unavailable</option>
-                          </select>
-                        </td>
+  <select
+    value={item.status}
+    onChange={async (e) => {
+      const newStatus = e.target.value;
+      try {
+        const res = await fetch(`/api/items/${item._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        toast.success(`Status updated to ${newStatus}`);
+        fetchItems();
+      } catch (error: any) {
+        toast.error(error.message || "Failed to update status");
+      }
+    }}
+    className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+  >
+    <option value="available">Available</option>
+    <option value="unavailable">Unavailable</option>
+  </select>
+</td>
+
                         <td className="px-6 py-4 text-sm">
                           <button
                             onClick={() => handleDeleteItem(item._id)}
