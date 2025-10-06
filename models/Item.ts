@@ -7,6 +7,7 @@ export interface IItem extends Document {
   price: number;
   category: string;
   imageUrl: string;
+  status: "available" | "unavailable"; // ✅ new
 }
 
 const ItemSchema = new Schema<IItem>(
@@ -16,6 +17,11 @@ const ItemSchema = new Schema<IItem>(
     price: { type: Number, required: true },
     category: { type: String, required: true },
     imageUrl: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["available", "unavailable"],
+      default: "available", // ✅ default
+    },
   },
   { timestamps: true }
 );

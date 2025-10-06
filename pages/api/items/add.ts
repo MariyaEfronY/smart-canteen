@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const data = fs.readFileSync(file.filepath);
 
       // ✅ Upload file buffer to Cloudinary
-      const upload = await cloudinary.uploader.upload_stream(
+      const upload = cloudinary.uploader.upload_stream(
         { folder: "menu_items" },
         async (error, result) => {
           if (error) {
@@ -56,6 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             price,
             category,
             imageUrl: result?.secure_url,
+            status,
           });
 
           return res.status(201).json({ message: "Item added successfully", item: newItem });
