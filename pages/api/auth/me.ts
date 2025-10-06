@@ -14,5 +14,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await User.findById(decoded.id).select("-password");
   if (!user) return res.status(200).json({ user: null });
-  res.status(200).json({ user });
+  
+  res.status(200).json({ 
+    user,
+    // Additional field added
+    lastActive: new Date().toISOString()
+  });
 }

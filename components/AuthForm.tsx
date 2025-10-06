@@ -50,6 +50,44 @@ export default function AuthForm({ type }: Props) {
     return result;
   };
 
+  // ✅ PERFECT REDIRECTION FUNCTION
+  const redirectUser = async (formRole?: string) => {
+    try {
+      // Fetch current user data to get accurate role
+      const userResponse = await fetch("/api/auth/me");
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        const userRole = userData.user?.role || formRole;
+        
+        // Redirect based on confirmed role
+        if (userRole === "admin") {
+          router.push("/admin");
+        } else if (userRole === "staff") {
+          router.push("/staff");
+        } else {
+          router.push("/student"); // ✅ Changed from "/dashboard" to "/student"
+        }
+      } else {
+        // Fallback to form data role
+        redirectFallback(formRole);
+      }
+    } catch (error) {
+      // Fallback to form data role
+      redirectFallback(formRole);
+    }
+  };
+
+  // ✅ FALLBACK REDIRECTION
+  const redirectFallback = (role: string | undefined) => {
+    if (role === "admin") {
+      router.push("/admin");
+    } else if (role === "staff") {
+      router.push("/staff");
+    } else {
+      router.push("/student"); // ✅ Changed from "/dashboard" to "/student"
+    }
+  };
+
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
     try {
@@ -88,25 +126,9 @@ export default function AuthForm({ type }: Props) {
 
       const result = await apiRequest(url, requestData);
       
-      // Redirect based on role after successful auth
-      if (type === "login") {
-        if (result.user?.role === "admin") {
-          router.push("/admin");
-        } else if (result.user?.role === "staff") {
-          router.push("/staff");
-        } else {
-          router.push("/dashboard");
-        }
-      } else {
-        // For signup, use the role from form data
-        if (data.role === "admin") {
-          router.push("/admin");
-        } else if (data.role === "staff") {
-          router.push("/staff");
-        } else {
-          router.push("/dashboard");
-        }
-      }
+      // ✅ PERFECT REDIRECTION AFTER SUCCESSFUL AUTH
+      await redirectUser(data.role);
+      
     } catch (err: unknown) {
       const error = err as Error;
       alert(error.message || "Something went wrong");

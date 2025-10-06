@@ -4,7 +4,7 @@ import ClientLayout from "./ClientLayout";
 import "./globals.css";
 
 export const metadata: Metadata = { 
-  title: "Campus Canteen 🍔",
+  title: "Smart Canteen 🍔",
   description: "Browse menu, order food, and track your order status.",
 };
 
