@@ -1,6 +1,5 @@
 "use client";
 import { useForm } from "react-hook-form";
-import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -15,15 +14,6 @@ interface AuthFormData {
   role?: "student" | "staff" | "admin";
   department?: string;
   phone?: string;
-}
-
-interface ApiError {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-  message?: string;
 }
 
 type Props = { type: "login" | "signup" };
@@ -42,42 +32,73 @@ export default function AuthForm({ type }: Props) {
     setIsMounted(true);
   }, []);
 
+  const apiRequest = async (url: string, data: any) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.message || "Something went wrong");
+    }
+
+    return result;
+  };
+
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
     try {
-      const url = type === "login" ? "/auth/login" : "/auth/signup";
+      const url = type === "login" ? "/api/auth/login" : "/api/auth/signup";
       
+      let requestData: any;
+
       // For login, ensure we send the correct identifier based on role
       if (type === "login") {
-        const loginData: any = {
+        requestData = {
           password: data.password,
           role: data.role
         };
 
         // Add the correct identifier based on role
         if (data.role === "student") {
-          loginData.dno = data.dno;
+          requestData.dno = data.dno;
         } else if (data.role === "staff") {
-          loginData.staffId = data.staffId;
+          requestData.staffId = data.staffId;
         } else if (data.role === "admin") {
-          loginData.email = data.email;
+          requestData.email = data.email;
         }
+      } else {
+        // For signup, send all data as is
+        requestData = {
+          name: data.name,
+          password: data.password,
+          role: data.role,
+          email: data.email,
+          dno: data.dno,
+          staffId: data.staffId,
+          department: data.department,
+          phone: data.phone,
+        };
+      }
 
-        const response = await api.post(url, loginData);
-        
-        // Redirect based on role after login
-        if (response.data.user?.role === "admin") {
+      const result = await apiRequest(url, requestData);
+      
+      // Redirect based on role after successful auth
+      if (type === "login") {
+        if (result.user?.role === "admin") {
           router.push("/admin");
-        } else if (response.data.user?.role === "staff") {
+        } else if (result.user?.role === "staff") {
           router.push("/staff");
         } else {
           router.push("/dashboard");
         }
       } else {
-        // For signup, send all data as is
-        const response = await api.post(url, data);
-        
-        // Redirect based on role after signup
+        // For signup, use the role from form data
         if (data.role === "admin") {
           router.push("/admin");
         } else if (data.role === "staff") {
@@ -87,8 +108,8 @@ export default function AuthForm({ type }: Props) {
         }
       }
     } catch (err: unknown) {
-      const error = err as ApiError;
-      alert(error.response?.data?.message || error.message || "Something went wrong");
+      const error = err as Error;
+      alert(error.message || "Something went wrong");
     } finally {
       setIsLoading(false);
     }
