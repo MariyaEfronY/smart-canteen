@@ -1,49 +1,43 @@
+// pages/api/orders/index.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { dbConnect } from "@/lib/mongoose";
 import Order from "@/models/Order";
-import Item from "@/models/Item";
-import { getTokenFromReq, verifyToken } from "@/lib/auth";
+import User from "@/models/User";
+import { getToken } from "next-auth/jwt"; // or use your existing auth system
+
+const secret = process.env.NEXTAUTH_SECRET as string;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
 
-  // ✅ Create Order — only for student or staff
+  // ✅ Handle Order Creation
   if (req.method === "POST") {
     try {
-      const token = getTokenFromReq(req);
+      const token = await getToken({ req, secret });
       if (!token) {
-        return res.status(401).json({ message: "Not authorized. Please login." });
+        return res.status(401).json({ message: "Unauthorized - Please login first" });
       }
 
-      const decoded = verifyToken(token);
-      if (!decoded) {
-        return res.status(401).json({ message: "Invalid or expired token" });
+      const { items, totalAmount } = req.body;
+      if (!items || items.length === 0) {
+        return res.status(400).json({ message: "No items found in the order" });
       }
 
-      const { items } = req.body;
-
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ message: "No items in order" });
+      // ✅ Fetch user details from DB
+      const user = await User.findById(token.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
-      // ❌ Prevent admin from placing orders
-      if (decoded.role === "admin") {
-        return res.status(403).json({ message: "Admins cannot place orders" });
-      }
-
-      // Fetch items to calculate total
-      const itemDocs = await Item.find({ _id: { $in: items.map(i => i.item) } });
-
-      const totalAmount = items.reduce((sum, i) => {
-        const item = itemDocs.find(d => d._id.toString() === i.item);
-        return sum + (item ? item.price * i.quantity : 0);
-      }, 0);
-
+      // ✅ Create and Save Order
       const newOrder = await Order.create({
-        userId: decoded.id,
-        userName: decoded.name,
-        role: decoded.role,
-        items,
+        userId: user._id,
+        userName: user.name,
+        role: user.role, // student or staff
+        items: items.map((i: any) => ({
+          item: i.itemId,
+          quantity: i.quantity,
+        })),
         totalAmount,
         status: "pending",
       });
@@ -51,40 +45,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(201).json({ message: "Order placed successfully", order: newOrder });
     } catch (error: any) {
       console.error("Error creating order:", error);
-      return res.status(500).json({ message: "Server error creating order", error: error.message });
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   }
 
-  // ✅ Get Orders (Admin sees all, Student/Staff sees their own)
+  // ✅ Fetch Logged-in User's Orders
   if (req.method === "GET") {
     try {
-      const token = getTokenFromReq(req);
+      const token = await getToken({ req, secret });
       if (!token) {
-        return res.status(401).json({ message: "Not authorized" });
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const decoded = verifyToken(token);
-      if (!decoded) {
-        return res.status(401).json({ message: "Invalid or expired token" });
+      const user = await User.findById(token.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
-      let orders;
-
-      if (decoded.role === "admin") {
-        orders = await Order.find().populate("items.item").sort({ createdAt: -1 });
-      } else {
-        orders = await Order.find({ userId: decoded.id })
-          .populate("items.item")
-          .sort({ createdAt: -1 });
-      }
-
+      const orders = await Order.find({ userId: user._id }).populate("items.item", "name price");
       return res.status(200).json(orders);
     } catch (error: any) {
       console.error("Error fetching orders:", error);
-      return res.status(500).json({ message: "Server error fetching orders", error: error.message });
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   }
 
-  res.setHeader("Allow", ["GET", "POST"]);
-  return res.status(405).end(`Method ${req.method} Not Allowed`);
+  // ❌ Any other HTTP Method
+  return res.status(405).json({ message: "Method Not Allowed" });
 }
