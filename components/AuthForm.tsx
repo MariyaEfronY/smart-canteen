@@ -1,240 +1,371 @@
 "use client";
-
-import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Plus, Minus, ShoppingCart, Search, Filter, Clock, Star, User, LogOut, AlertCircle } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import Link from "next/link";
 
-interface MenuItem {
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  imageUrl: string;
-  status: "available" | "unavailable";
+// Define proper TypeScript interfaces
+interface AuthFormData {
+  name?: string;
+  dno?: string;
+  staffId?: string;
+  email?: string;
+  password: string;
+  role?: "student" | "staff" | "admin";
+  department?: string;
+  phone?: string;
 }
 
-interface CartItem {
-  item: MenuItem;
-  quantity: number;
-}
+type Props = { type: "login" | "signup" };
 
-export default function Home() {
+export default function AuthForm({ type }: Props) {
+  const router = useRouter();
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<AuthFormData>();
+  const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [isLoading, setIsLoading] = useState(true);
-  const [showCart, setShowCart] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  const watchRole = watch("role");
 
-  // Handle scroll effect for navbar
+  // Fix hydration by only rendering after mount
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    setIsMounted(true);
   }, []);
 
-  // Prevent body scroll when menu is open
-  useEffect(() => {
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+  const apiRequest = async (url: string, data: any) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
     
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isMenuOpen]);
+    if (!response.ok) {
+      throw new Error(result.message || "Something went wrong");
+    }
 
-  // Fetch menu items and user data
-  useEffect(() => {
-    fetchMenuItems();
-    checkAuthStatus();
-  }, []);
+    return result;
+  };
 
-  const fetchMenuItems = async () => {
+  // ✅ PERFECT REDIRECTION FUNCTION
+  const redirectUser = async (formRole?: string) => {
     try {
-      const response = await fetch("/api/items/all");
-      if (response.ok) {
-        const data = await response.json();
-        setMenuItems(data);
+      // Fetch current user data to get accurate role
+      const userResponse = await fetch("/api/auth/me");
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        const userRole = userData.user?.role || formRole;
+        
+        // Redirect based on confirmed role
+        if (userRole === "admin") {
+          router.push("/admin");
+        } else if (userRole === "staff") {
+          router.push("/staff");
+        } else {
+          router.push("/student"); // ✅ Changed from "/dashboard" to "/student"
+        }
       } else {
-        toast.error("Failed to load menu items");
+        // Fallback to form data role
+        redirectFallback(formRole);
       }
     } catch (error) {
-      console.error("Error fetching menu items:", error);
-      toast.error("Failed to load menu items");
+      // Fallback to form data role
+      redirectFallback(formRole);
+    }
+  };
+
+  // ✅ FALLBACK REDIRECTION
+  const redirectFallback = (role: string | undefined) => {
+    if (role === "admin") {
+      router.push("/admin");
+    } else if (role === "staff") {
+      router.push("/staff");
+    } else {
+      router.push("/student"); // ✅ Changed from "/dashboard" to "/student"
+    }
+  };
+
+  const onSubmit = async (data: AuthFormData) => {
+    setIsLoading(true);
+    try {
+      const url = type === "login" ? "/api/auth/login" : "/api/auth/signup";
+      
+      let requestData: any;
+
+      // For login, ensure we send the correct identifier based on role
+      if (type === "login") {
+        requestData = {
+          password: data.password,
+          role: data.role
+        };
+
+        // Add the correct identifier based on role
+        if (data.role === "student") {
+          requestData.dno = data.dno;
+        } else if (data.role === "staff") {
+          requestData.staffId = data.staffId;
+        } else if (data.role === "admin") {
+          requestData.email = data.email;
+        }
+      } else {
+        // For signup, send all data as is
+        requestData = {
+          name: data.name,
+          password: data.password,
+          role: data.role,
+          email: data.email,
+          dno: data.dno,
+          staffId: data.staffId,
+          department: data.department,
+          phone: data.phone,
+        };
+      }
+
+      const result = await apiRequest(url, requestData);
+      
+      // ✅ PERFECT REDIRECTION AFTER SUCCESSFUL AUTH
+      await redirectUser(data.role);
+      
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert(error.message || "Something went wrong");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const checkAuthStatus = async () => {
-    try {
-      const response = await fetch("/api/auth/me");
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        setUser(null);
-      }
-    } catch (error) {
-      console.error("Error checking auth status:", error);
-      setUser(null);
-    } finally {
-      setAuthChecked(true);
-    }
-  };
-
-  // ✅ FIXED: Anyone can add to cart, login only required when placing order
-  const addToCart = (item: MenuItem) => {
-    if (item.status !== "available") {
-      toast.error("This item is currently unavailable");
-      return;
-    }
-
-    setCart(prevCart => {
-      const existingItem = prevCart.find(cartItem => cartItem.item._id === item._id);
-      if (existingItem) {
-        return prevCart.map(cartItem =>
-          cartItem.item._id === item._id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
+  // Get identifier field based on selected role for LOGIN
+  const getLoginIdentifier = () => {
+    if (type === "login") {
+      if (watchRole === "student") {
+        return (
+          <div>
+            <label htmlFor="dno" className="block text-sm font-medium text-gray-700 mb-2">
+              Department Number (D.No) *
+            </label>
+            <input
+              {...register("dno", { 
+                required: watchRole === "student" ? "D.No is required for students" : false,
+              })}
+              id="dno"
+              placeholder="Enter your D.No (e.g., 23UBC512)"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.dno && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.dno.message}</span>
+              </p>
+            )}
+          </div>
+        );
+      } else if (watchRole === "staff") {
+        return (
+          <div>
+            <label htmlFor="staffId" className="block text-sm font-medium text-gray-700 mb-2">
+              Staff ID *
+            </label>
+            <input
+              {...register("staffId", { 
+                required: watchRole === "staff" ? "Staff ID is required for staff" : false,
+              })}
+              id="staffId"
+              placeholder="Enter your Staff ID (e.g., 23UBC52)"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.staffId && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.staffId.message}</span>
+              </p>
+            )}
+          </div>
+        );
+      } else if (watchRole === "admin") {
+        return (
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address *
+            </label>
+            <input
+              {...register("email", { 
+                required: watchRole === "admin" ? "Email is required for admin" : false,
+                pattern: {
+                  value: /^\S+@\S+$/i,
+                  message: "Invalid email address"
+                }
+              })}
+              id="email"
+              placeholder="Enter your email address"
+              type="email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.email.message}</span>
+              </p>
+            )}
+          </div>
         );
       } else {
-        return [...prevCart, { item, quantity: 1 }];
+        // No role selected yet
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-blue-800 text-sm text-center">
+              Please select your account type to see the required login field
+            </p>
+          </div>
+        );
       }
-    });
-    toast.success(`Added ${item.name} to cart!`);
-  };
-
-  const removeFromCart = (itemId: string) => {
-    setCart(prevCart => prevCart.filter(item => item.item._id !== itemId));
-    toast.success("Item removed from cart");
-  };
-
-  const updateQuantity = (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) {
-      removeFromCart(itemId);
-      return;
     }
-    setCart(prevCart =>
-      prevCart.map(item =>
-        item.item._id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
+    return null;
   };
 
-  const getTotalPrice = () => {
-    return cart.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
-  };
-
-  const getTotalItems = () => {
-    return cart.reduce((total, cartItem) => total + cartItem.quantity, 0);
-  };
-
-  // Filter menu items
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const categories = ["all", ...new Set(menuItems.map(item => item.category))];
-
-  // ✅ FIXED: Login required only when placing order
-  const placeOrder = async () => {
-    if (cart.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
-
-    // Show login prompt if user is not logged in
-    if (!user) {
-      setShowLoginPrompt(true);
-      toast.error("Please login to place your order");
-      return;
-    }
-
-    try {
-      const orderData = {
-        items: cart.map(item => ({
-          itemId: item.item._id,
-          quantity: item.quantity,
-        })),
-        totalAmount: getTotalPrice(),
-      };
-
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(orderData),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to place order");
+  // For signup, show identifier field based on selected role
+  const getSignupIdentifier = () => {
+    if (type === "signup") {
+      if (watchRole === "student") {
+        return (
+          <div>
+            <label htmlFor="dno" className="block text-sm font-medium text-gray-700 mb-2">
+              Department Number (D.No) *
+            </label>
+            <input
+              {...register("dno", { 
+                required: watchRole === "student" ? "D.No is required for students" : false,
+                pattern: {
+                  value: /^[0-9]{2}[A-Z]{3}[0-9]{3}$/,
+                  message: "Invalid D.No format (example: 23UBC512)"
+                }
+              })}
+              id="dno"
+              placeholder="e.g., 23UBC512"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.dno && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.dno.message}</span>
+              </p>
+            )}
+            <p className="text-gray-500 text-xs mt-1">
+              Format: 23UBC512 (Year+Dept+Number) - Required for students
+            </p>
+          </div>
+        );
+      } else if (watchRole === "staff") {
+        return (
+          <div>
+            <label htmlFor="staffId" className="block text-sm font-medium text-gray-700 mb-2">
+              Staff ID *
+            </label>
+            <input
+              {...register("staffId", { 
+                required: watchRole === "staff" ? "Staff ID is required for staff" : false,
+                pattern: {
+                  value: /^[0-9]{2}[A-Z]{3}[0-9]{2,3}$/,
+                  message: "Invalid Staff ID format (example: 23UBC52)"
+                }
+              })}
+              id="staffId"
+              placeholder="e.g., 23UBC52"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.staffId && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.staffId.message}</span>
+              </p>
+            )}
+            <p className="text-gray-500 text-xs mt-1">
+              Format: 23UBC52 (Year+Dept+Number) - Required for staff
+            </p>
+          </div>
+        );
+      } else if (watchRole === "admin") {
+        return (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800 text-sm text-center">
+              💼 Admin accounts require only email authentication. No additional ID needed.
+            </p>
+          </div>
+        );
+      } else {
+        // No role selected yet
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-blue-800 text-sm text-center">
+              Please select your account type above to see the required identifier field
+            </p>
+          </div>
+        );
       }
-
-      toast.success("Order placed successfully!");
-      setCart([]);
-      setShowCart(false);
-      
-      // Redirect to orders page
-      setTimeout(() => {
-        window.location.href = "/orders";
-      }, 1500);
-    } catch (error: any) {
-      console.error("Order error:", error);
-      toast.error(error.message || "Failed to place order");
     }
+    return null;
   };
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-      
-      if (response.ok) {
-        setUser(null);
-        // Don't clear cart on logout - user might want to login again
-        toast.success("Logged out successfully!");
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.error("Failed to logout");
+  // Additional fields for signup - Hide for admin
+  const getAdditionalSignupFields = () => {
+    if (type === "signup" && watchRole !== "admin") {
+      return (
+        <>
+          <div>
+            <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
+              Department {watchRole === "student" ? "*" : "(Optional)"}
+            </label>
+            <input
+              {...register("department", { 
+                required: watchRole === "student" ? "Department is required for students" : false 
+              })}
+              id="department"
+              placeholder="Enter your department"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+            {errors.department && (
+              <p className="text-red-500 text-sm mt-2 flex items-center">
+                <span>⚠️</span>
+                <span className="ml-1">{errors.department.message}</span>
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number (Optional)
+            </label>
+            <input
+              {...register("phone")}
+              id="phone"
+              placeholder="Enter your phone number"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+            />
+          </div>
+        </>
+      );
     }
+    return null;
   };
 
-  const handleLoginSuccess = () => {
-    setShowLoginPrompt(false);
-    checkAuthStatus();
-    toast.success("Welcome back! You can now place your order.");
-  };
-
-  // Show loading while checking auth
-  if (!authChecked) {
+  // Don't render anything until mounted to avoid hydration mismatch
+  if (!isMounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-blue-50">
+        <div className="max-w-md w-full mx-auto p-4">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div className="animate-pulse">
+              <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto mb-8"></div>
+              <div className="space-y-4">
+                <div className="h-12 bg-gray-200 rounded"></div>
+                <div className="h-12 bg-gray-200 rounded"></div>
+                <div className="h-12 bg-green-600 rounded"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -242,620 +373,232 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
-      <Toaster position="top-right" />
-
-      {/* Login Prompt Modal - Only shown when trying to place order without login */}
-      {showLoginPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="text-yellow-600" size={32} />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h3>
-              <p className="text-gray-600 mb-6">
-                Please login to your account to place your order. Your cart items will be saved.
-              </p>
-              <div className="space-y-3">
-                <Link
-                  href="/login"
-                  onClick={handleLoginSuccess}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 block text-center"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  onClick={handleLoginSuccess}
-                  className="w-full bg-white text-green-600 border border-green-200 py-3 px-6 rounded-xl font-semibold hover:bg-green-50 transition-all duration-200 block text-center"
-                >
-                  Create Account
-                </Link>
-                <button
-                  onClick={() => setShowLoginPrompt(false)}
-                  className="w-full text-gray-500 py-3 px-6 rounded-xl font-semibold hover:bg-gray-100 transition-all duration-200"
-                >
-                  Continue Browsing
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Mobile Header with Burger Menu */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-md z-50">
+        <div className="flex justify-between items-center p-4">
+          <Link href="/" className="text-lg font-bold text-green-600">
+            Campus Canteen
+          </Link>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 rounded-md text-gray-600 hover:text-green-600 hover:bg-gray-100 transition-colors"
+            aria-label="Toggle menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
         </div>
-      )}
 
-      {/* Navigation Bar */}
-      <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-        isScrolled 
-          ? "bg-white shadow-lg border-b border-gray-200" 
-          : "bg-white"
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 lg:h-20">
-            {/* Logo */}
-            <Link 
-              href="/" 
-              className="flex items-center space-x-3 group"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <span className="text-white text-lg lg:text-xl">🍔</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Campus Canteen
-                </span>
-                <span className="text-xs text-gray-500 hidden sm:block">Delicious & Fast</span>
-              </div>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-8">
+        {/* Mobile Menu Dropdown */}
+        {isMenuOpen && (
+          <div className="absolute top-full left-0 right-0 bg-white shadow-lg border-t border-gray-200">
+            <div className="flex flex-col p-4 space-y-3">
               <Link 
                 href="/" 
-                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
+                className="text-gray-700 hover:text-green-600 font-medium py-2 transition-colors duration-200 text-center"
+                onClick={() => setIsMenuOpen(false)}
               >
-                Home
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
+                🏠 Home
               </Link>
-              <Link 
-                href="/menu" 
-                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-              >
-                Menu
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-              {user && (
-                <Link 
-                  href="/orders" 
-                  className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-                >
-                  My Orders
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-                </Link>
-              )}
-              <Link 
-                href="/about" 
-                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-              >
-                About
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-            </div>
-
-            {/* Desktop Auth & Cart Buttons */}
-            <div className="hidden lg:flex items-center space-x-4">
-              {/* Cart Button - Show to everyone, not just logged in users */}
-              <button
-                onClick={() => setShowCart(true)}
-                className="relative p-2 text-gray-700 hover:text-green-600 transition-colors duration-200 group"
-              >
-                <ShoppingCart size={24} className="group-hover:scale-110 transition-transform duration-200" />
-                {getTotalItems() > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-                    {getTotalItems()}
-                  </span>
-                )}
-              </button>
-
-              {user ? (
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2 text-gray-700 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                    <User size={16} className="text-green-600" />
-                    <span className="font-medium text-sm">
-                      {user.name || user.email}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-all duration-200 border border-transparent hover:border-red-200 flex items-center gap-2"
-                  >
-                    <LogOut size={16} />
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <Link 
-                    href="/login" 
-                    className="px-6 py-2.5 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all duration-200 border border-transparent hover:border-green-200"
-                  >
-                    Sign In
-                  </Link>
-                  <Link 
-                    href="/signup" 
-                    className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                  >
-                    Get Started
-                  </Link>
-                </>
-              )}
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
-              aria-label="Toggle menu"
-            >
-              <div className="w-6 h-6 relative">
-                <span className={`absolute left-0 top-1 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${
-                  isMenuOpen ? "rotate-45 top-3 bg-gray-700" : ""
-                }`}></span>
-                <span className={`absolute left-0 top-3 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${
-                  isMenuOpen ? "opacity-0" : ""
-                }`}></span>
-                <span className={`absolute left-0 top-5 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${
-                  isMenuOpen ? "-rotate-45 top-3 bg-gray-700" : ""
-                }`}></span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu Overlay */}
-        <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${
-          isMenuOpen 
-            ? "opacity-100 pointer-events-auto" 
-            : "opacity-0 pointer-events-none"
-        }`}>
-          <div className="absolute inset-0 bg-white">
-            <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-gray-200 bg-white">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-white text-xl">🍔</span>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-bold text-gray-900 block">Campus Canteen</span>
-                    <span className="text-gray-500 text-sm">Delicious & Fast</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsMenuOpen(false)}
-                  className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
-                  aria-label="Close menu"
-                >
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Navigation Links */}
-              <div className="flex-1 p-6 space-y-3 overflow-y-auto">
-                {[
-                  { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
-                  { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes" },
-                  ...(user ? [{ href: "/orders", label: "My Orders", icon: "📦", description: "View your orders" }] : []),
-                  { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
-                ].map((link) => (
-                  <Link 
-                    key={link.href}
-                    href={link.href} 
-                    className="flex items-center space-x-4 p-4 rounded-xl bg-gray-50 hover:bg-green-50 transition-all duration-200 group border border-gray-200 hover:border-green-200 hover:shadow-md"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors duration-200 shadow-sm">
-                      <span className="text-xl">{link.icon}</span>
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-bold text-gray-900 text-lg block">{link.label}</span>
-                      <span className="text-gray-500 text-sm">{link.description}</span>
-                    </div>
-                    <div className="text-gray-400 group-hover:text-green-500">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Auth Buttons */}
-              <div className="flex-shrink-0 p-6 space-y-4 border-t border-gray-200 bg-gray-50">
-                {user ? (
-                  <>
-                    <div className="text-center p-4 bg-white rounded-xl border border-green-200">
-                      <p className="font-semibold text-gray-900">Welcome back!</p>
-                      <p className="text-gray-600 text-sm">
-                        {user.name || user.email}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full px-6 py-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all duration-200 text-center block text-lg hover:shadow-md flex items-center justify-center gap-2"
-                    >
-                      <LogOut size={20} />
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link 
-                      href="/login" 
-                      className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      🔐 Sign In
-                    </Link>
-                    <Link 
-                      href="/signup" 
-                      className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-center block text-lg"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      🚀 Get Started
-                    </Link>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="pt-24 lg:pt-32 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Hero Section */}
-          <div className="text-center py-8 md:py-12">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 md:mb-8 leading-tight">
-              Welcome to{" "}
-              <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                Campus Canteen
-              </span>{" "}
-              🍕
-            </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
-              Discover delicious meals, order with ease, and enjoy campus dining like never before. 
-              {!user && " Add items to cart and login when you're ready to order!"}
-            </p>
-            
-            {/* User Status Banner */}
-            {user ? (
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-2xl shadow-lg max-w-md mx-auto mb-8">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                    <User size={20} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-semibold">Welcome, {user.name}!</p>
-                    <p className="text-sm opacity-90">Ready to order delicious food</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-blue-50 border border-blue-200 px-6 py-4 rounded-2xl max-w-md mx-auto mb-8">
-                <div className="flex items-center justify-center gap-3">
-                  <ShoppingCart className="text-blue-600" size={24} />
-                  <div className="text-left">
-                    <p className="font-semibold text-blue-800">Browse & Add to Cart</p>
-                    <p className="text-sm text-blue-700">Login when you're ready to place your order</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Stats */}
-            <div className="flex flex-wrap justify-center gap-6 mb-8">
-              <div className="bg-white px-6 py-3 rounded-xl shadow-lg border border-gray-200">
-                <div className="text-2xl font-bold text-green-600">{menuItems.length}</div>
-                <div className="text-gray-600 text-sm">Menu Items</div>
-              </div>
-              <div className="bg-white px-6 py-3 rounded-xl shadow-lg border border-gray-200">
-                <div className="text-2xl font-bold text-blue-600">{categories.length - 1}</div>
-                <div className="text-gray-600 text-sm">Categories</div>
-              </div>
-              <div className="bg-white px-6 py-3 rounded-xl shadow-lg border border-gray-200">
-                <div className="text-2xl font-bold text-purple-600">
-                  {menuItems.filter(item => item.status === "available").length}
-                </div>
-                <div className="text-gray-600 text-sm">Available Now</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Search and Filter Section */}
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search for dishes..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
-                />
-              </div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 bg-white"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category === "all" ? "All Categories" : category.charAt(0).toUpperCase() + category.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Menu Items Grid */}
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
-              {filteredItems.map((item) => (
-                <div
-                  key={item._id}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-105 group overflow-hidden"
-                >
-                  <div className="relative">
-                    <img
-                      src={item.imageUrl || "/placeholder-food.jpg"}
-                      alt={item.name}
-                      className="w-full h-48 object-cover rounded-t-2xl group-hover:scale-110 transition-transform duration-300"
-                    />
-                    {item.status === "unavailable" && (
-                      <div className="absolute inset-0 bg-black bg-opacity-60 rounded-t-2xl flex items-center justify-center">
-                        <span className="text-white font-bold text-lg bg-red-500 px-3 py-1 rounded-full">Unavailable</span>
-                      </div>
-                    )}
-                    <div className="absolute top-3 right-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-lg ${
-                        item.status === "available" 
-                          ? "bg-green-500 text-white" 
-                          : "bg-red-500 text-white"
-                      }`}>
-                        {item.status === "available" ? "Available" : "Unavailable"}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-900 text-lg mb-2 group-hover:text-green-700 transition-colors duration-300">
-                      {item.name}
-                    </h3>
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description}</p>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                        ₹{item.price}
-                      </span>
-                      <button
-                        onClick={() => addToCart(item)}
-                        disabled={item.status !== "available"}
-                        className={`px-4 py-2 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 ${
-                          item.status === "available"
-                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        <Plus size={16} />
-                        Add to Cart
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!isLoading && filteredItems.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search size={40} className="text-gray-400" />
-              </div>
-              <p className="text-gray-500 text-lg mb-2">No menu items found</p>
-              <p className="text-gray-400 text-sm">Try adjusting your search or filter criteria</p>
-            </div>
-          )}
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pb-12 sm:pb-16">
-            {!user ? (
-              <>
-                {cart.length > 0 && (
-                  <button
-                    onClick={() => setShowCart(true)}
-                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-                  >
-                    View Cart ({getTotalItems()})
-                  </button>
-                )}
+              {type === "login" ? (
                 <Link 
                   href="/signup" 
-                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
+                  className="bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors duration-200 text-center"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Create Account
                 </Link>
+              ) : (
                 <Link 
                   href="/login" 
-                  className="w-full sm:w-auto px-8 py-4 bg-white text-green-600 border border-green-200 font-semibold rounded-xl hover:bg-green-50 transition-all duration-200 text-lg text-center"
+                  className="bg-white text-green-600 border border-green-600 px-4 py-3 rounded-lg font-semibold hover:bg-green-50 transition-colors duration-200 text-center"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Sign In
                 </Link>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="flex items-center justify-center min-h-screen py-4 px-4 lg:py-8 lg:px-6">
+        <div className="max-w-md w-full mx-auto lg:mt-0 mt-16">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="mx-auto w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center shadow-lg mb-4">
+              <span className="text-2xl text-white">🍔</span>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Campus Canteen
+            </h1>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+              {type === "login" ? "Welcome Back" : "Create Account"}
+            </h2>
+            <p className="text-gray-600">
+              {type === "login" 
+                ? "Sign in with your credentials" 
+                : "Register based on your role"
+              }
+            </p>
+          </div>
+
+          {/* Form */}
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6"
+          >
+            {/* Role Selection - Required for BOTH login and signup */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                I am a *
+              </label>
+              <select 
+                {...register("role", { required: "Please select your account type" })} 
+                id="role"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
+              >
+                <option value="">Select your role</option>
+                <option value="student">🎓 Student</option>
+                <option value="staff">👨‍🏫 Staff</option>
+                <option value="admin">👨‍💼 Admin</option>
+              </select>
+              {errors.role && (
+                <p className="text-red-500 text-sm mt-2 flex items-center">
+                  <span>⚠️</span>
+                  <span className="ml-1">{errors.role.message}</span>
+                </p>
+              )}
+            </div>
+
+            {type === "signup" && (
+              <>
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name *
+                  </label>
+                  <input
+                    {...register("name", { required: "Name is required" })}
+                    id="name"
+                    placeholder="Enter your full name"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                  />
+                  {errors.name && (
+                    <p className="text-red-500 text-sm mt-2 flex items-center">
+                      <span>⚠️</span>
+                      <span className="ml-1">{errors.name.message}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address {watchRole === "admin" ? "*" : "(Optional)"}
+                  </label>
+                  <input
+                    {...register("email", { 
+                      required: watchRole === "admin" ? "Email is required for admin" : false,
+                      pattern: {
+                        value: /^\S+@\S+$/i,
+                        message: "Invalid email address"
+                      }
+                    })}
+                    id="email"
+                    placeholder="Enter your email"
+                    type="email"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-sm mt-2 flex items-center">
+                      <span>⚠️</span>
+                      <span className="ml-1">{errors.email.message}</span>
+                    </p>
+                  )}
+                  {watchRole !== "admin" && (
+                    <p className="text-gray-500 text-xs mt-1">
+                      Optional for students and staff
+                    </p>
+                  )}
+                </div>
               </>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
-                  href="/orders" 
-                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-                >
-                  View My Orders
-                </Link>
-                {cart.length > 0 && (
-                  <button
-                    onClick={() => setShowCart(true)}
-                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-                  >
-                    View Cart ({getTotalItems()})
-                  </button>
-                )}
-              </div>
             )}
+
+            {/* Identifier Fields - Different for login vs signup */}
+            {type === "login" ? getLoginIdentifier() : getSignupIdentifier()}
+
+            {/* Additional fields for signup - Hidden for admin */}
+            {getAdditionalSignupFields()}
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password *
+              </label>
+              <input
+                {...register("password", { 
+                  required: "Password is required",
+                  minLength: {
+                    value: 6,
+                    message: "Password must be at least 6 characters"
+                  }
+                })}
+                id="password"
+                placeholder="Enter your password"
+                type="password"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+              />
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-2 flex items-center">
+                  <span>⚠️</span>
+                  <span className="ml-1">{errors.password.message}</span>
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <span>{type === "login" ? "🔐" : "🚀"}</span>
+                  <span>{type === "login" ? "Sign In" : "Create Account"}</span>
+                </>
+              )}
+            </button>
+
+            <div className="text-center pt-4 border-t border-gray-200">
+              <p className="text-gray-600">
+                {type === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+                <Link
+                  href={type === "login" ? "/signup" : "/login"}
+                  className="text-green-600 hover:text-green-700 font-semibold transition-colors duration-200"
+                >
+                  {type === "login" ? "Sign up" : "Sign in"}
+                </Link>
+              </p>
+            </div>
+          </form>
+
+          {/* Footer */}
+          <div className="text-center mt-6">
+            <p className="text-gray-500 text-sm">
+              © 2024 Campus Canteen. Role-based authentication system.
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Shopping Cart Sidebar - Accessible to everyone */}
-      {showCart && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300" 
-            onClick={() => setShowCart(false)}
-          ></div>
-          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl transform transition-transform duration-300">
-            <div className="flex flex-col h-full">
-              {/* Cart Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <ShoppingCart className="text-green-500" />
-                  Your Cart
-                  {!user && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full ml-2">
-                      Login to Order
-                    </span>
-                  )}
-                </h2>
-                <button
-                  onClick={() => setShowCart(false)}
-                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 hover:scale-110"
-                >
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-6">
-                {cart.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ShoppingCart size={64} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500 text-lg mb-2">Your cart is empty</p>
-                    <p className="text-gray-400 text-sm">Add some delicious items to get started!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {cart.map((cartItem) => (
-                      <div 
-                        key={cartItem.item._id} 
-                        className="flex items-center space-x-4 bg-gray-50 p-4 rounded-xl border border-gray-200 hover:border-green-200 transition-all duration-300 group"
-                      >
-                        <img
-                          src={cartItem.item.imageUrl || "/placeholder-food.jpg"}
-                          alt={cartItem.item.name}
-                          className="w-16 h-16 object-cover rounded-lg group-hover:scale-110 transition-transform duration-300"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-green-700 transition-colors duration-300">
-                            {cartItem.item.name}
-                          </h3>
-                          <p className="text-green-600 font-bold">₹{cartItem.item.price}</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => updateQuantity(cartItem.item._id, cartItem.quantity - 1)}
-                            className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors duration-200 hover:scale-110"
-                          >
-                            <Minus size={16} />
-                          </button>
-                          <span className="font-semibold w-8 text-center bg-white px-2 py-1 rounded border">
-                            {cartItem.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(cartItem.item._id, cartItem.quantity + 1)}
-                            className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors duration-200 hover:scale-110"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => removeFromCart(cartItem.item._id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-200 hover:scale-110"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Cart Footer */}
-              {cart.length > 0 && (
-                <div className="border-t border-gray-200 p-6 space-y-4 bg-gradient-to-r from-gray-50 to-white">
-                  <div className="flex justify-between items-center text-lg font-semibold">
-                    <span>Total:</span>
-                    <span className="text-green-600 text-xl">₹{getTotalPrice().toFixed(2)}</span>
-                  </div>
-                  {user ? (
-                    <button
-                      onClick={placeOrder}
-                      className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    >
-                      Place Order
-                    </button>
-                  ) : (
-                    <button
-                      onClick={placeOrder}
-                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-yellow-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                    >
-                      <User size={20} />
-                      Login to Place Order
-                    </button>
-                  )}
-                  <p className="text-center text-gray-500 text-sm">
-                    {!user && "You need to login to place your order"}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Cart Button for Mobile - Show to everyone when cart has items */}
-      {cart.length > 0 && (
-        <button
-          onClick={() => setShowCart(true)}
-          className="fixed bottom-6 right-6 z-40 lg:hidden bg-gradient-to-r from-green-500 to-emerald-500 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transform hover:scale-110 transition-all duration-300"
-        >
-          <div className="relative">
-            <ShoppingCart size={24} />
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold">
-              {getTotalItems()}
-            </span>
-          </div>
-        </button>
-      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Plus, Minus, ShoppingCart, Search, User, LogOut, AlertCircle } from "lucide-react";
+import { Plus, Minus, ShoppingCart, Search } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -21,13 +21,6 @@ interface CartItem {
   quantity: number;
 }
 
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  role: "student" | "staff";
-}
-
 export default function Home() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -38,9 +31,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
-  const [user, setUser] = useState<UserData | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   // Handle scroll effect for navbar
@@ -65,10 +56,9 @@ export default function Home() {
     };
   }, [isMenuOpen]);
 
-  // Fetch menu items and check auth status
+  // Fetch menu items only - no auth check
   useEffect(() => {
     fetchMenuItems();
-    checkAuthStatus();
   }, []);
 
   // Load cart from localStorage on component mount
@@ -110,26 +100,7 @@ export default function Home() {
     }
   };
 
-  const checkAuthStatus = async () => {
-    try {
-      const response = await fetch("/api/auth/me", {
-        credentials: "include",
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        setUser(null);
-      }
-    } catch (error) {
-      console.error("Error checking auth status:", error);
-      setUser(null);
-    } finally {
-      setAuthChecked(true);
-    }
-  };
-
-  // ✅ Anyone can add to cart without login
+  // ✅ SIMPLE: Anyone can add to cart without any login check
   const addToCart = (item: MenuItem) => {
     if (item.status !== "available") {
       toast.error("This item is currently unavailable");
@@ -186,96 +157,17 @@ export default function Home() {
 
   const categories = ["all", ...new Set(menuItems.map(item => item.category))];
 
-  // ✅ CORRECTED: Handle order placement with proper login flow
+  // ✅ SIMPLE: Handle order placement - show login prompt if not logged in
   const handlePlaceOrder = async () => {
     if (cart.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
 
-    // If user is not logged in, show login prompt
-    if (!user) {
-      setShowLoginPrompt(true);
-      return;
-    }
-
-    // If user is logged in, proceed to place order
-    await placeOrder();
+    // Always show login prompt since we're not checking auth status
+    setShowLoginPrompt(true);
   };
 
-  const placeOrder = async () => {
-    if (cart.length === 0) return;
-
-    setIsPlacingOrder(true);
-    
-    try {
-      const orderData = {
-        items: cart.map(cartItem => ({
-          item: cartItem.item._id, // Match backend expectation
-          quantity: cartItem.quantity,
-        })),
-      };
-
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(orderData),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          setShowLoginPrompt(true);
-          throw new Error("Please login to place an order");
-        }
-        throw new Error(data.message || "Failed to place order");
-      }
-
-      toast.success("Order placed successfully!");
-      
-      // Clear cart and localStorage
-      setCart([]);
-      localStorage.removeItem('canteenCart');
-      
-      // Close cart sidebar
-      setShowCart(false);
-      
-      // Redirect to orders page after a brief delay
-      setTimeout(() => {
-        router.push("/orders");
-      }, 1500);
-      
-    } catch (error: any) {
-      console.error("Order error:", error);
-      toast.error(error.message || "Failed to place order. Please try again.");
-    } finally {
-      setIsPlacingOrder(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-      
-      if (response.ok) {
-        setUser(null);
-        toast.success("Logged out successfully!");
-        // Don't clear cart on logout
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.error("Failed to logout");
-    }
-  };
-
-  // Handle login for order placement
   const handleLoginForOrder = () => {
     // Save current cart to localStorage before redirecting to login
     const redirectData = {
@@ -290,40 +182,6 @@ export default function Home() {
     router.push('/login');
   };
 
-  // Check for redirect data after login (when user returns)
-  useEffect(() => {
-    if (user) {
-      const redirectData = localStorage.getItem('loginRedirect');
-      if (redirectData) {
-        const { cart: savedCart, message, fromOrder } = JSON.parse(redirectData);
-        if (savedCart && savedCart.length > 0) {
-          setCart(savedCart);
-          if (fromOrder) {
-            toast.success(message || "Welcome back! Your cart has been restored.");
-            // Auto-open cart if they were trying to place an order
-            setShowCart(true);
-          }
-        }
-        localStorage.removeItem('loginRedirect');
-        
-        // Close login prompt if it's open
-        setShowLoginPrompt(false);
-      }
-    }
-  }, [user]);
-
-  // Show loading while checking auth
-  if (!authChecked) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
       <Toaster position="top-right" />
@@ -334,7 +192,7 @@ export default function Home() {
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <div className="text-center">
               <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="text-yellow-600" size={32} />
+                <span className="text-2xl">🔐</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h3>
               <p className="text-gray-600 mb-6">
@@ -366,7 +224,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Navigation Bar */}
+      {/* Navigation Bar - No user info displayed */}
       <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
         isScrolled 
           ? "bg-white shadow-lg border-b border-gray-200" 
@@ -407,15 +265,6 @@ export default function Home() {
                 Menu
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
               </Link>
-              {user && (
-                <Link 
-                  href="/orders" 
-                  className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-                >
-                  My Orders
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-                </Link>
-              )}
               <Link 
                 href="/about" 
                 className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
@@ -440,38 +289,19 @@ export default function Home() {
                 )}
               </button>
 
-              {user ? (
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2 text-gray-700 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                    <User size={16} className="text-green-600" />
-                    <span className="font-medium text-sm">
-                      {user.name} ({user.role})
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-all duration-200 border border-transparent hover:border-red-200 flex items-center gap-2"
-                  >
-                    <LogOut size={16} />
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <Link 
-                    href="/login" 
-                    className="px-6 py-2.5 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all duration-200 border border-transparent hover:border-green-200"
-                  >
-                    Sign In
-                  </Link>
-                  <Link 
-                    href="/signup" 
-                    className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                  >
-                    Get Started
-                  </Link>
-                </>
-              )}
+              {/* Always show login/signup buttons */}
+              <Link 
+                href="/login" 
+                className="px-6 py-2.5 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all duration-200 border border-transparent hover:border-green-200"
+              >
+                Sign In
+              </Link>
+              <Link 
+                href="/signup" 
+                className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              >
+                Get Started
+              </Link>
             </div>
 
             {/* Mobile Menu Button */}
@@ -530,7 +360,6 @@ export default function Home() {
                 {[
                   { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
                   { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes" },
-                  ...(user ? [{ href: "/orders", label: "My Orders", icon: "📦", description: "View your orders" }] : []),
                   { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
                 ].map((link) => (
                   <Link 
@@ -557,40 +386,20 @@ export default function Home() {
 
               {/* Auth Buttons */}
               <div className="flex-shrink-0 p-6 space-y-4 border-t border-gray-200 bg-gray-50">
-                {user ? (
-                  <>
-                    <div className="text-center p-4 bg-white rounded-xl border border-green-200">
-                      <p className="font-semibold text-gray-900">Welcome back!</p>
-                      <p className="text-gray-600 text-sm">
-                        {user.name} ({user.role})
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full px-6 py-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all duration-200 text-center block text-lg hover:shadow-md flex items-center justify-center gap-2"
-                    >
-                      <LogOut size={20} />
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link 
-                      href="/login" 
-                      className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      🔐 Sign In
-                    </Link>
-                    <Link 
-                      href="/signup" 
-                      className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-center block text-lg"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      🚀 Get Started
-                    </Link>
-                  </>
-                )}
+                <Link 
+                  href="/login" 
+                  className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  🔐 Sign In
+                </Link>
+                <Link 
+                  href="/signup" 
+                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-center block text-lg"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  🚀 Get Started
+                </Link>
               </div>
             </div>
           </div>
@@ -611,33 +420,8 @@ export default function Home() {
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
               Discover delicious meals, order with ease, and enjoy campus dining like never before. 
-              {!user && " Browse our menu and add items to cart - login when you're ready to order!"}
+              Browse our menu and add items to cart - login when you're ready to order!
             </p>
-            
-            {/* User Status Banner */}
-            {user ? (
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-2xl shadow-lg max-w-md mx-auto mb-8">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                    <User size={20} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-semibold">Welcome, {user.name}!</p>
-                    <p className="text-sm opacity-90">Ready to order delicious food</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-blue-50 border border-blue-200 px-6 py-4 rounded-2xl max-w-md mx-auto mb-8">
-                <div className="flex items-center justify-center gap-3">
-                  <ShoppingCart className="text-blue-600" size={24} />
-                  <div className="text-left">
-                    <p className="font-semibold text-blue-800">Browse & Add to Cart</p>
-                    <p className="text-sm text-blue-700">Login when you're ready to place your order</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Quick Stats */}
             <div className="flex flex-wrap justify-center gap-6 mb-8">
@@ -758,187 +542,230 @@ export default function Home() {
             </div>
           )}
 
+          {/* Features Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <div className="text-3xl sm:text-4xl mb-4">🍔</div>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-800">Wide Menu Selection</h3>
+              <p className="text-gray-600 leading-relaxed text-base sm:text-lg">
+                Choose from a variety of delicious meals and snacks prepared fresh daily
+              </p>
+            </div>
+            
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <div className="text-3xl sm:text-4xl mb-4">⚡</div>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-800">Quick Ordering</h3>
+              <p className="text-gray-600 leading-relaxed text-base sm:text-lg">
+                Order your food in seconds with our streamlined and intuitive process
+              </p>
+            </div>
+            
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <div className="text-3xl sm:text-4xl mb-4">📱</div>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-800">Real-time Tracking</h3>
+              <p className="text-gray-600 leading-relaxed text-base sm:text-lg">
+                Track your order status from preparation to delivery in real-time
+              </p>
+            </div>
+          </div>
+
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pb-12 sm:pb-16">
-            {!user ? (
-              <>
-                {cart.length > 0 && (
-                  <button
-                    onClick={() => setShowCart(true)}
-                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-                  >
-                    View Cart ({getTotalItems()})
-                  </button>
-                )}
-                <Link 
-                  href="/signup" 
-                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-                >
-                  Create Account
-                </Link>
-                <Link 
-                  href="/login" 
-                  className="w-full sm:w-auto px-8 py-4 bg-white text-green-600 border border-green-200 font-semibold rounded-xl hover:bg-green-50 transition-all duration-200 text-lg text-center"
-                >
-                  Sign In
-                </Link>
-              </>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
-                  href="/orders" 
-                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-                >
-                  View My Orders
-                </Link>
-                {cart.length > 0 && (
-                  <button
-                    onClick={() => setShowCart(true)}
-                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-                  >
-                    View Cart ({getTotalItems()})
-                  </button>
-                )}
-              </div>
+            {cart.length > 0 && (
+              <button
+                onClick={() => setShowCart(true)}
+                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
+              >
+                View Cart ({getTotalItems()})
+              </button>
             )}
+            <Link 
+              href="/signup" 
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
+            >
+              Create Account
+            </Link>
+            <Link 
+              href="/login" 
+              className="w-full sm:w-auto px-8 py-4 bg-white text-green-600 border border-green-200 font-semibold rounded-xl hover:bg-green-50 transition-all duration-200 text-lg text-center"
+            >
+              Sign In
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Shopping Cart Sidebar - Accessible to everyone */}
-      {showCart && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300" 
-            onClick={() => setShowCart(false)}
-          ></div>
-          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl transform transition-transform duration-300">
-            <div className="flex flex-col h-full">
-              {/* Cart Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <ShoppingCart className="text-green-500" />
-                  Your Cart
-                  {!user && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full ml-2">
-                      Login to Order
-                    </span>
-                  )}
-                </h2>
-                <button
-                  onClick={() => setShowCart(false)}
-                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 hover:scale-110"
-                >
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+      {/* Shopping Cart Sidebar - Improved Design */}
+{showCart && (
+  <div className="fixed inset-0 z-50 overflow-hidden">
+    <div 
+      className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300" 
+      onClick={() => setShowCart(false)}
+    ></div>
+    <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl transform transition-transform duration-300 flex flex-col">
+      {/* Cart Header */}
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+            <ShoppingCart className="text-white" size={20} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Your Cart</h2>
+            <p className="text-sm text-gray-500">
+              {cart.length} item{cart.length !== 1 ? 's' : ''} • ₹{getTotalPrice().toFixed(2)}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowCart(false)}
+          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 hover:scale-110"
+        >
+          <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-6">
-                {cart.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ShoppingCart size={64} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500 text-lg mb-2">Your cart is empty</p>
-                    <p className="text-gray-400 text-sm">Add some delicious items to get started!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {cart.map((cartItem) => (
-                      <div 
-                        key={cartItem.item._id} 
-                        className="flex items-center space-x-4 bg-gray-50 p-4 rounded-xl border border-gray-200 hover:border-green-200 transition-all duration-300 group"
-                      >
-                        <img
-                          src={cartItem.item.imageUrl || "/placeholder-food.jpg"}
-                          alt={cartItem.item.name}
-                          className="w-16 h-16 object-cover rounded-lg group-hover:scale-110 transition-transform duration-300"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-green-700 transition-colors duration-300">
-                            {cartItem.item.name}
-                          </h3>
-                          <p className="text-green-600 font-bold">₹{cartItem.item.price}</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => updateQuantity(cartItem.item._id, cartItem.quantity - 1)}
-                            className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors duration-200 hover:scale-110"
-                          >
-                            <Minus size={16} />
-                          </button>
-                          <span className="font-semibold w-8 text-center bg-white px-2 py-1 rounded border">
-                            {cartItem.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(cartItem.item._id, cartItem.quantity + 1)}
-                            className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors duration-200 hover:scale-110"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
+      {/* Cart Items */}
+      <div className="flex-1 overflow-y-auto">
+        {cart.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <ShoppingCart size={40} className="text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Your cart is empty</h3>
+            <p className="text-gray-500 mb-6">Add some delicious items to get started!</p>
+            <button
+              onClick={() => setShowCart(false)}
+              className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200"
+            >
+              Browse Menu
+            </button>
+          </div>
+        ) : (
+          <div className="p-6 space-y-4">
+            {cart.map((cartItem) => (
+              <div 
+                key={cartItem.item._id} 
+                className="bg-white rounded-xl border border-gray-200 hover:border-green-200 transition-all duration-300 group hover:shadow-md"
+              >
+                <div className="flex gap-4 p-4">
+                  <img
+                    src={cartItem.item.imageUrl || "/placeholder-food.jpg"}
+                    alt={cartItem.item.name}
+                    className="w-20 h-20 object-cover rounded-lg group-hover:scale-105 transition-transform duration-300 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 group-hover:text-green-700 transition-colors duration-300 truncate">
+                      {cartItem.item.name}
+                    </h3>
+                    <p className="text-green-600 font-bold text-lg mb-2">₹{cartItem.item.price}</p>
+                    
+                    {/* Quantity Controls */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => removeFromCart(cartItem.item._id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-200 hover:scale-110"
+                          onClick={() => updateQuantity(cartItem.item._id, cartItem.quantity - 1)}
+                          className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors duration-200 hover:scale-110"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                          <Minus size={16} className="text-gray-600" />
+                        </button>
+                        <span className="font-semibold w-8 text-center bg-white px-3 py-1 rounded-lg border border-gray-300">
+                          {cartItem.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(cartItem.item._id, cartItem.quantity + 1)}
+                          className="w-8 h-8 bg-green-500 text-white rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors duration-200 hover:scale-110"
+                        >
+                          <Plus size={16} />
                         </button>
                       </div>
-                    ))}
+                      <button
+                        onClick={() => removeFromCart(cartItem.item._id)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-200 hover:scale-110"
+                        title="Remove item"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    {/* Item Total */}
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <p className="text-sm text-gray-600">
+                        Item Total: <span className="font-semibold text-green-600">₹{(cartItem.item.price * cartItem.quantity).toFixed(2)}</span>
+                      </p>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-              {/* Cart Footer */}
-              {cart.length > 0 && (
-                <div className="border-t border-gray-200 p-6 space-y-4 bg-gradient-to-r from-gray-50 to-white">
-                  <div className="flex justify-between items-center text-lg font-semibold">
-                    <span>Total:</span>
-                    <span className="text-green-600 text-xl">₹{getTotalPrice().toFixed(2)}</span>
-                  </div>
-                  {user ? (
-                    <button
-                      onClick={handlePlaceOrder}
-                      disabled={isPlacingOrder}
-                      className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transform transition-all duration-200 shadow-lg hover:shadow-xl ${
-                        isPlacingOrder
-                          ? "bg-gray-400 text-white cursor-not-allowed"
-                          : "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 hover:scale-105"
-                      }`}
-                    >
-                      {isPlacingOrder ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                          Placing Order...
-                        </div>
-                      ) : (
-                        "Place Order"
-                      )}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handlePlaceOrder}
-                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-yellow-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                    >
-                      <User size={20} />
-                      Login & Place Order
-                    </button>
-                  )}
-                  <p className="text-center text-gray-500 text-sm">
-                    {!user 
-                      ? "You'll be redirected to login to complete your order" 
-                      : "Order will be saved to your personal dashboard"
-                    }
+      {/* Cart Footer - Only show when cart has items */}
+      {cart.length > 0 && (
+        <div className="border-t border-gray-200 bg-white sticky bottom-0">
+          <div className="p-6 space-y-4">
+            {/* Order Summary */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-lg">
+                <span className="text-gray-600">Subtotal:</span>
+                <span className="font-semibold">₹{getTotalPrice().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-lg">
+                <span className="text-gray-600">Items:</span>
+                <span className="font-semibold">{getTotalItems()}</span>
+              </div>
+              <div className="border-t border-gray-200 pt-2">
+                <div className="flex justify-between items-center text-xl font-bold">
+                  <span>Total:</span>
+                  <span className="text-green-600">₹{getTotalPrice().toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Login Notice */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-yellow-600 text-sm">💡</span>
+                </div>
+                <div>
+                  <p className="text-yellow-800 text-sm font-medium">Login to place order</p>
+                  <p className="text-yellow-700 text-xs mt-1">
+                    You'll be redirected to login to complete your order
                   </p>
                 </div>
-              )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <button
+                onClick={handlePlaceOrder}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+              >
+                <ShoppingCart size={20} />
+                Place Order
+              </button>
+              
+              <button
+                onClick={() => setShowCart(false)}
+                className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 border border-gray-300"
+              >
+                Continue Shopping
+              </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  </div>
+)}
+      
 
       {/* Floating Cart Button for Mobile */}
       {cart.length > 0 && (
