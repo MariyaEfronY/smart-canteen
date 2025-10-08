@@ -1,20 +1,26 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { dbConnect } from "@/lib/mongoose";
 import Order from "@/models/Order";
-import User from "@/models/User";
-import jwt from "jsonwebtoken";
+import Item from "@/models/Item";
+import { verifyToken } from "@/lib/auth"; // verifies JWT cookie
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
 
+  // 🧾 Create order
   if (req.method === "POST") {
     try {
-      const token = req.cookies.token; // 👈 your cookie set by setTokenCookie()
-      if (!token) return res.status(401).json({ message: "Please login to place an order" });
+      // ✅ Get token from cookie and verify user
+      const token = req.cookies.token;
+      if (!token) return res.status(401).json({ message: "Not logged in" });
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+      const decoded = verifyToken(token);
+      if (!decoded) return res.status(401).json({ message: "Invalid token" });
+
+      const { id: userId, role, name } = decoded as {
         id: string;
         role: "student" | "staff";
+        name: string;
       };
 
       const { items } = req.body;
@@ -22,49 +28,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: "No items provided" });
       }
 
-      // Find the logged-in user
-      const user = await User.findById(decoded.id);
-      if (!user) return res.status(404).json({ message: "User not found" });
+      // ✅ Calculate total amount
+      let totalAmount = 0;
+      for (const orderItem of items) {
+        const item = await Item.findById(orderItem.item);
+        if (!item) {
+          return res.status(404).json({ message: `Item not found: ${orderItem.item}` });
+        }
+        totalAmount += item.price * orderItem.quantity;
+      }
 
-      // Calculate total
-      const totalAmount = items.reduce(
-        (sum: number, item: any) => sum + item.price * item.quantity,
-        0
-      );
-
-      const order = await Order.create({
-        userId: user._id,
-        userName: user.name,
-        role: user.role,
-        items: items.map((i: any) => ({ item: i.itemId, quantity: i.quantity })),
+      // ✅ Create the order document
+      const newOrder = await Order.create({
+        userId,
+        userName: name,
+        role,
+        items,
         totalAmount,
         status: "pending",
       });
 
-      return res.status(201).json({ message: "Order placed successfully", order });
-    } catch (error: any) {
-      console.error("Order creation error:", error);
-      if (error.name === "JsonWebTokenError") {
-        return res.status(401).json({ message: "Invalid or expired token" });
-      }
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(201).json({
+        message: "Order placed successfully",
+        order: newOrder,
+      });
+    } catch (err: any) {
+      console.error("Order Create Error:", err);
+      return res.status(500).json({ message: "Internal server error", error: err.message });
     }
   }
 
+  // 📦 Fetch orders for logged-in user
   if (req.method === "GET") {
     try {
       const token = req.cookies.token;
-      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      if (!token) return res.status(401).json({ message: "Not logged in" });
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
-        id: string;
-      };
+      const decoded = verifyToken(token);
+      if (!decoded) return res.status(401).json({ message: "Invalid token" });
 
-      const orders = await Order.find({ userId: decoded.id }).populate("items.item");
+      const { id: userId } = decoded as { id: string };
+
+      const orders = await Order.find({ userId })
+        .populate("items.item", "name price")
+        .sort({ createdAt: -1 });
+
       return res.status(200).json(orders);
-    } catch (error: any) {
-      console.error("Error fetching orders:", error);
-      return res.status(500).json({ message: "Internal server error" });
+    } catch (err: any) {
+      console.error("Fetch Orders Error:", err);
+      return res.status(500).json({ message: "Internal server error", error: err.message });
     }
   }
 

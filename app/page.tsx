@@ -132,123 +132,97 @@ export default function Home() {
 
   const categories = ["all", ...new Set(menuItems.map(item => item.category))];
 
-// ✅ SIMPLIFIED: Check authentication only when placing order
-const placeOrder = async () => {
-  if (cart.length === 0) {
-    toast.error("Your cart is empty");
-    return;
-  }
-
-  try {
-    const orderData = {
-      items: cart.map(item => ({
-        itemId: item.item._id,
-        quantity: item.quantity,
-      })),
-      totalAmount: getTotalPrice(),
-    };
-
-    const response = await fetch("/api/orders", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify(orderData),
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        // ✅ Save cart to localStorage before redirecting to login
-        localStorage.setItem('pendingOrderCart', JSON.stringify(cart));
-        localStorage.setItem('pendingOrderTotal', getTotalPrice().toString());
-        setShowLoginPrompt(true);
-        throw new Error("Please login to place an order");
-      }
-      throw new Error(data.message || "Failed to place order");
+  // ✅ SIMPLIFIED: Check authentication only when placing order
+  const placeOrder = async () => {
+    if (cart.length === 0) {
+      toast.error("Your cart is empty");
+      return;
     }
 
-    toast.success("Order placed successfully!");
-    
-    // ✅ Clear both current cart and pending order data
-    setCart([]);
-    localStorage.removeItem('canteenCart');
-    localStorage.removeItem('pendingOrderCart');
-    localStorage.removeItem('pendingOrderTotal');
-    
-    setShowCart(false);
-    
-    // Redirect to orders page
-    setTimeout(() => {
-      window.location.href = "/orders";
-    }, 1500);
-  } catch (error: any) {
-    console.error("Order error:", error);
-    toast.error(error.message || "Failed to place order");
-  }
-};
+    try {
+      const orderData = {
+        items: cart.map(item => ({
+          itemId: item.item._id,
+          quantity: item.quantity,
+        })),
+        totalAmount: getTotalPrice(),
+      };
+
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(orderData),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setShowLoginPrompt(true);
+          throw new Error("Please login to place an order");
+        }
+        throw new Error(data.message || "Failed to place order");
+      }
+
+      toast.success("Order placed successfully!");
+      setCart([]);
+      setShowCart(false);
+      
+      // Redirect to orders page
+      setTimeout(() => {
+        window.location.href = "/orders";
+      }, 1500);
+    } catch (error: any) {
+      console.error("Order error:", error);
+      toast.error(error.message || "Failed to place order");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
       <Toaster position="top-right" />
 
-{/* Login Prompt Modal */}
-{showLoginPrompt && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-    <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
-      <div className="text-center">
-        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl">🔐</span>
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">🔐</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h3>
+              <p className="text-gray-600 mb-6">
+                Please login to your account to place your order.
+              </p>
+              <div className="space-y-3">
+                <Link
+                  href="/login"
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 block text-center"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="w-full bg-white text-green-600 border border-green-200 py-3 px-6 rounded-xl font-semibold hover:bg-green-50 transition-all duration-200 block text-center"
+                >
+                  Create Account
+                </Link>
+                <button
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="w-full text-gray-500 py-3 px-6 rounded-xl font-semibold hover:bg-gray-100 transition-all duration-200"
+                >
+                  Continue Browsing
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h3>
-        <p className="text-gray-600 mb-4">
-          Please login to place your order with {getTotalItems()} items (₹{getTotalPrice()})
-        </p>
-        <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
-          <p className="text-green-800 text-sm">
-            🛒 Your cart items will be saved and ordered after login
-          </p>
-        </div>
-        <div className="space-y-3">
-          <Link
-            href={{
-              pathname: "/login",
-              query: { 
-                redirect: "/checkout",
-                hasCart: "true",
-                itemCount: getTotalItems().toString()
-              }
-            }}
-            onClick={() => setShowLoginPrompt(false)}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 block text-center"
-          >
-            Login & Place Order
-          </Link>
-          <Link
-            href={{
-              pathname: "/signup",
-              query: { 
-                redirect: "/checkout",
-                hasCart: "true"
-              }
-            }}
-            onClick={() => setShowLoginPrompt(false)}
-            className="w-full bg-white text-green-600 border border-green-200 py-3 px-6 rounded-xl font-semibold hover:bg-green-50 transition-all duration-200 block text-center"
-          >
-            Create Account & Order
-          </Link>
-          <button
-            onClick={() => setShowLoginPrompt(false)}
-            className="w-full text-gray-500 py-3 px-6 rounded-xl font-semibold hover:bg-gray-100 transition-all duration-200"
-          >
-            Continue Browsing
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Navigation Bar */}
       <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
