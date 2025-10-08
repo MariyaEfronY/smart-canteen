@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Plus, Minus, ShoppingCart, Search, Filter, Clock, Star } from "lucide-react";
+import { Plus, Minus, ShoppingCart, Search, User, LogOut, AlertCircle } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 interface MenuItem {
   _id: string;
@@ -20,7 +21,15 @@ interface CartItem {
   quantity: number;
 }
 
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  role: "student" | "staff";
+}
+
 export default function Home() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -29,7 +38,10 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [showCart, setShowCart] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -53,10 +65,33 @@ export default function Home() {
     };
   }, [isMenuOpen]);
 
-  // Fetch menu items only
+  // Fetch menu items and check auth status
   useEffect(() => {
     fetchMenuItems();
+    checkAuthStatus();
   }, []);
+
+  // Load cart from localStorage on component mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('canteenCart');
+    if (savedCart) {
+      try {
+        const parsedCart = JSON.parse(savedCart);
+        setCart(parsedCart);
+      } catch (error) {
+        console.error('Error loading cart from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save cart to localStorage whenever cart changes
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('canteenCart', JSON.stringify(cart));
+    } else {
+      localStorage.removeItem('canteenCart');
+    }
+  }, [cart]);
 
   const fetchMenuItems = async () => {
     try {
@@ -75,7 +110,26 @@ export default function Home() {
     }
   };
 
-  // ✅ SIMPLIFIED: Anyone can add to cart, but need to login to order
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error checking auth status:", error);
+      setUser(null);
+    } finally {
+      setAuthChecked(true);
+    }
+  };
+
+  // ✅ Anyone can add to cart without login
   const addToCart = (item: MenuItem) => {
     if (item.status !== "available") {
       toast.error("This item is currently unavailable");
@@ -132,20 +186,34 @@ export default function Home() {
 
   const categories = ["all", ...new Set(menuItems.map(item => item.category))];
 
-  // ✅ SIMPLIFIED: Check authentication only when placing order
-  const placeOrder = async () => {
+  // ✅ CORRECTED: Handle order placement with proper login flow
+  const handlePlaceOrder = async () => {
     if (cart.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
 
+    // If user is not logged in, show login prompt
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    // If user is logged in, proceed to place order
+    await placeOrder();
+  };
+
+  const placeOrder = async () => {
+    if (cart.length === 0) return;
+
+    setIsPlacingOrder(true);
+    
     try {
       const orderData = {
-        items: cart.map(item => ({
-          itemId: item.item._id,
-          quantity: item.quantity,
+        items: cart.map(cartItem => ({
+          item: cartItem.item._id, // Match backend expectation
+          quantity: cartItem.quantity,
         })),
-        totalAmount: getTotalPrice(),
       };
 
       const response = await fetch("/api/orders", {
@@ -168,18 +236,93 @@ export default function Home() {
       }
 
       toast.success("Order placed successfully!");
+      
+      // Clear cart and localStorage
       setCart([]);
+      localStorage.removeItem('canteenCart');
+      
+      // Close cart sidebar
       setShowCart(false);
       
-      // Redirect to orders page
+      // Redirect to orders page after a brief delay
       setTimeout(() => {
-        window.location.href = "/orders";
+        router.push("/orders");
       }, 1500);
+      
     } catch (error: any) {
       console.error("Order error:", error);
-      toast.error(error.message || "Failed to place order");
+      toast.error(error.message || "Failed to place order. Please try again.");
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        setUser(null);
+        toast.success("Logged out successfully!");
+        // Don't clear cart on logout
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to logout");
+    }
+  };
+
+  // Handle login for order placement
+  const handleLoginForOrder = () => {
+    // Save current cart to localStorage before redirecting to login
+    const redirectData = {
+      redirectTo: '/',
+      message: 'Please complete your order after login',
+      cart: cart,
+      fromOrder: true
+    };
+    localStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+    
+    // Redirect to login page
+    router.push('/login');
+  };
+
+  // Check for redirect data after login (when user returns)
+  useEffect(() => {
+    if (user) {
+      const redirectData = localStorage.getItem('loginRedirect');
+      if (redirectData) {
+        const { cart: savedCart, message, fromOrder } = JSON.parse(redirectData);
+        if (savedCart && savedCart.length > 0) {
+          setCart(savedCart);
+          if (fromOrder) {
+            toast.success(message || "Welcome back! Your cart has been restored.");
+            // Auto-open cart if they were trying to place an order
+            setShowCart(true);
+          }
+        }
+        localStorage.removeItem('loginRedirect');
+        
+        // Close login prompt if it's open
+        setShowLoginPrompt(false);
+      }
+    }
+  }, [user]);
+
+  // Show loading while checking auth
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
@@ -191,26 +334,25 @@ export default function Home() {
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <div className="text-center">
               <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🔐</span>
+                <AlertCircle className="text-yellow-600" size={32} />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h3>
               <p className="text-gray-600 mb-6">
-                Please login to your account to place your order.
+                Please login to your account to place your order. Your cart items will be saved.
               </p>
               <div className="space-y-3">
-                <Link
-                  href="/login"
-                  onClick={() => setShowLoginPrompt(false)}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 block text-center"
+                <button
+                  onClick={handleLoginForOrder}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200"
                 >
-                  Sign In
-                </Link>
+                  Sign In to Place Order
+                </button>
                 <Link
                   href="/signup"
                   onClick={() => setShowLoginPrompt(false)}
                   className="w-full bg-white text-green-600 border border-green-200 py-3 px-6 rounded-xl font-semibold hover:bg-green-50 transition-all duration-200 block text-center"
                 >
-                  Create Account
+                  Create New Account
                 </Link>
                 <button
                   onClick={() => setShowLoginPrompt(false)}
@@ -265,6 +407,15 @@ export default function Home() {
                 Menu
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
               </Link>
+              {user && (
+                <Link 
+                  href="/orders" 
+                  className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
+                >
+                  My Orders
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
+                </Link>
+              )}
               <Link 
                 href="/about" 
                 className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
@@ -289,18 +440,38 @@ export default function Home() {
                 )}
               </button>
 
-              <Link 
-                href="/login" 
-                className="px-6 py-2.5 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all duration-200 border border-transparent hover:border-green-200"
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/signup" 
-                className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-              >
-                Get Started
-              </Link>
+              {user ? (
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2 text-gray-700 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+                    <User size={16} className="text-green-600" />
+                    <span className="font-medium text-sm">
+                      {user.name} ({user.role})
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-all duration-200 border border-transparent hover:border-red-200 flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Link 
+                    href="/login" 
+                    className="px-6 py-2.5 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all duration-200 border border-transparent hover:border-green-200"
+                  >
+                    Sign In
+                  </Link>
+                  <Link 
+                    href="/signup" 
+                    className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -359,6 +530,7 @@ export default function Home() {
                 {[
                   { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
                   { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes" },
+                  ...(user ? [{ href: "/orders", label: "My Orders", icon: "📦", description: "View your orders" }] : []),
                   { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
                 ].map((link) => (
                   <Link 
@@ -385,20 +557,40 @@ export default function Home() {
 
               {/* Auth Buttons */}
               <div className="flex-shrink-0 p-6 space-y-4 border-t border-gray-200 bg-gray-50">
-                <Link 
-                  href="/login" 
-                  className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  🔐 Sign In
-                </Link>
-                <Link 
-                  href="/signup" 
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-center block text-lg"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  🚀 Get Started
-                </Link>
+                {user ? (
+                  <>
+                    <div className="text-center p-4 bg-white rounded-xl border border-green-200">
+                      <p className="font-semibold text-gray-900">Welcome back!</p>
+                      <p className="text-gray-600 text-sm">
+                        {user.name} ({user.role})
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-6 py-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all duration-200 text-center block text-lg hover:shadow-md flex items-center justify-center gap-2"
+                    >
+                      <LogOut size={20} />
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link 
+                      href="/login" 
+                      className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      🔐 Sign In
+                    </Link>
+                    <Link 
+                      href="/signup" 
+                      className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-center block text-lg"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      🚀 Get Started
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -419,8 +611,33 @@ export default function Home() {
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
               Discover delicious meals, order with ease, and enjoy campus dining like never before. 
-              Browse our menu and add items to cart - login when you're ready to order!
+              {!user && " Browse our menu and add items to cart - login when you're ready to order!"}
             </p>
+            
+            {/* User Status Banner */}
+            {user ? (
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-2xl shadow-lg max-w-md mx-auto mb-8">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <User size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold">Welcome, {user.name}!</p>
+                    <p className="text-sm opacity-90">Ready to order delicious food</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 px-6 py-4 rounded-2xl max-w-md mx-auto mb-8">
+                <div className="flex items-center justify-center gap-3">
+                  <ShoppingCart className="text-blue-600" size={24} />
+                  <div className="text-left">
+                    <p className="font-semibold text-blue-800">Browse & Add to Cart</p>
+                    <p className="text-sm text-blue-700">Login when you're ready to place your order</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Quick Stats */}
             <div className="flex flex-wrap justify-center gap-6 mb-8">
@@ -522,7 +739,7 @@ export default function Home() {
                         }`}
                       >
                         <Plus size={16} />
-                        {item.status === "available" ? "Add to Cart" : "Unavailable"}
+                        Add to Cart
                       </button>
                     </div>
                   </div>
@@ -541,52 +758,54 @@ export default function Home() {
             </div>
           )}
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
-            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className="text-3xl sm:text-4xl mb-4">🍔</div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-800">Wide Menu Selection</h3>
-              <p className="text-gray-600 leading-relaxed text-base sm:text-lg">
-                Choose from a variety of delicious meals and snacks prepared fresh daily
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className="text-3xl sm:text-4xl mb-4">⚡</div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-800">Quick Ordering</h3>
-              <p className="text-gray-600 leading-relaxed text-base sm:text-lg">
-                Order your food in seconds with our streamlined and intuitive process
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className="text-3xl sm:text-4xl mb-4">📱</div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-800">Real-time Tracking</h3>
-              <p className="text-gray-600 leading-relaxed text-base sm:text-lg">
-                Track your order status from preparation to delivery in real-time
-              </p>
-            </div>
-          </div>
-
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pb-12 sm:pb-16">
-            <Link 
-              href="/signup" 
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
-            >
-              Get Started Free
-            </Link>
-            <Link 
-              href="/login" 
-              className="w-full sm:w-auto px-8 py-4 bg-white text-green-600 border border-green-200 font-semibold rounded-xl hover:bg-green-50 transition-all duration-200 text-lg text-center"
-            >
-              Sign In
-            </Link>
+            {!user ? (
+              <>
+                {cart.length > 0 && (
+                  <button
+                    onClick={() => setShowCart(true)}
+                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
+                  >
+                    View Cart ({getTotalItems()})
+                  </button>
+                )}
+                <Link 
+                  href="/signup" 
+                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
+                >
+                  Create Account
+                </Link>
+                <Link 
+                  href="/login" 
+                  className="w-full sm:w-auto px-8 py-4 bg-white text-green-600 border border-green-200 font-semibold rounded-xl hover:bg-green-50 transition-all duration-200 text-lg text-center"
+                >
+                  Sign In
+                </Link>
+              </>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link 
+                  href="/orders" 
+                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
+                >
+                  View My Orders
+                </Link>
+                {cart.length > 0 && (
+                  <button
+                    onClick={() => setShowCart(true)}
+                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg text-center"
+                  >
+                    View Cart ({getTotalItems()})
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Shopping Cart Sidebar - Always visible */}
+      {/* Shopping Cart Sidebar - Accessible to everyone */}
       {showCart && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div 
@@ -600,6 +819,11 @@ export default function Home() {
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                   <ShoppingCart className="text-green-500" />
                   Your Cart
+                  {!user && (
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full ml-2">
+                      Login to Order
+                    </span>
+                  )}
                 </h2>
                 <button
                   onClick={() => setShowCart(false)}
@@ -675,17 +899,40 @@ export default function Home() {
                     <span>Total:</span>
                     <span className="text-green-600 text-xl">₹{getTotalPrice().toFixed(2)}</span>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <p className="text-blue-800 text-sm text-center">
-                      💡 <strong>Tip:</strong> You'll need to login to place your order
-                    </p>
-                  </div>
-                  <button
-                    onClick={placeOrder}
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-                  >
-                    Place Order
-                  </button>
+                  {user ? (
+                    <button
+                      onClick={handlePlaceOrder}
+                      disabled={isPlacingOrder}
+                      className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transform transition-all duration-200 shadow-lg hover:shadow-xl ${
+                        isPlacingOrder
+                          ? "bg-gray-400 text-white cursor-not-allowed"
+                          : "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 hover:scale-105"
+                      }`}
+                    >
+                      {isPlacingOrder ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          Placing Order...
+                        </div>
+                      ) : (
+                        "Place Order"
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handlePlaceOrder}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-yellow-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                    >
+                      <User size={20} />
+                      Login & Place Order
+                    </button>
+                  )}
+                  <p className="text-center text-gray-500 text-sm">
+                    {!user 
+                      ? "You'll be redirected to login to complete your order" 
+                      : "Order will be saved to your personal dashboard"
+                    }
+                  </p>
                 </div>
               )}
             </div>
@@ -693,7 +940,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Floating Cart Button for Mobile - Always show when cart has items */}
+      {/* Floating Cart Button for Mobile */}
       {cart.length > 0 && (
         <button
           onClick={() => setShowCart(true)}
