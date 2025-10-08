@@ -50,9 +50,22 @@ export default function AuthForm({ type }: Props) {
     return result;
   };
 
-  // ✅ PERFECT REDIRECTION FUNCTION
+  // ✅ UPDATED: Enhanced redirection function with order placement check
   const redirectUser = async (formRole?: string) => {
     try {
+      // Check if there's a pending order from localStorage
+      const redirectData = localStorage.getItem('loginRedirect');
+      
+      if (redirectData) {
+        const { fromOrder, redirectTo } = JSON.parse(redirectData);
+        
+        if (fromOrder && redirectTo === '/place-order') {
+          // Redirect to place order page instead of dashboard
+          router.push('/place-order');
+          return;
+        }
+      }
+
       // Fetch current user data to get accurate role
       const userResponse = await fetch("/api/auth/me");
       if (userResponse.ok) {
@@ -65,7 +78,7 @@ export default function AuthForm({ type }: Props) {
         } else if (userRole === "staff") {
           router.push("/staff");
         } else {
-          router.push("/student"); // ✅ Changed from "/dashboard" to "/student"
+          router.push("/student");
         }
       } else {
         // Fallback to form data role
@@ -84,7 +97,7 @@ export default function AuthForm({ type }: Props) {
     } else if (role === "staff") {
       router.push("/staff");
     } else {
-      router.push("/student"); // ✅ Changed from "/dashboard" to "/student"
+      router.push("/student");
     }
   };
 
@@ -126,7 +139,7 @@ export default function AuthForm({ type }: Props) {
 
       const result = await apiRequest(url, requestData);
       
-      // ✅ PERFECT REDIRECTION AFTER SUCCESSFUL AUTH
+      // ✅ UPDATED: Enhanced redirection after successful auth
       await redirectUser(data.role);
       
     } catch (err: unknown) {
@@ -350,6 +363,18 @@ export default function AuthForm({ type }: Props) {
     return null;
   };
 
+  // Check if there's a pending order to show special message
+  const hasPendingOrder = () => {
+    if (typeof window !== 'undefined') {
+      const redirectData = localStorage.getItem('loginRedirect');
+      if (redirectData) {
+        const { fromOrder } = JSON.parse(redirectData);
+        return fromOrder;
+      }
+    }
+    return false;
+  };
+
   // Don't render anything until mounted to avoid hydration mismatch
   if (!isMounted) {
     return (
@@ -447,6 +472,21 @@ export default function AuthForm({ type }: Props) {
                 : "Register based on your role"
               }
             </p>
+
+            {/* Special message for pending orders */}
+            {type === "login" && hasPendingOrder() && (
+              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <span className="text-yellow-600 text-sm">🛒</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-yellow-800 font-medium text-sm">Complete Your Order</p>
+                    <p className="text-yellow-700 text-xs">Login to place your pending order</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form */}
@@ -573,7 +613,12 @@ export default function AuthForm({ type }: Props) {
               ) : (
                 <>
                   <span>{type === "login" ? "🔐" : "🚀"}</span>
-                  <span>{type === "login" ? "Sign In" : "Create Account"}</span>
+                  <span>
+                    {type === "login" 
+                      ? (hasPendingOrder() ? "Login & Place Order" : "Sign In")
+                      : "Create Account"
+                    }
+                  </span>
                 </>
               )}
             </button>

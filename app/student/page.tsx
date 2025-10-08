@@ -55,22 +55,28 @@ export default function StudentDashboard() {
   };
 
   const fetchOrders = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/orders");
-      if (response.ok) {
-        const ordersData = await response.json();
-        setOrders(ordersData);
-      } else {
-        toast.error("Failed to fetch orders");
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      toast.error("Error loading orders");
-    } finally {
-      setIsLoading(false);
+  try {
+    setIsLoading(true);
+    const response = await fetch("/api/orders", {
+      credentials: "include" // Important for session cookies
+    });
+    
+    if (response.ok) {
+      const ordersData = await response.json();
+      setOrders(ordersData);
+    } else if (response.status === 401) {
+      // Redirect to login if unauthorized
+      router.push("/login");
+    } else {
+      toast.error("Failed to fetch orders");
     }
-  };
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    toast.error("Error loading orders");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleCancelOrder = async (orderId: string) => {
     if (!confirm("Are you sure you want to cancel this order?")) return;
