@@ -24,12 +24,18 @@ export default function PlaceOrder() {
   const [orderFailed, setOrderFailed] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderId, setOrderId] = useState<string>("");
+  const [hasPlacedOrder, setHasPlacedOrder] = useState(false);
 
   useEffect(() => {
     placeOrderAfterLogin();
   }, []);
 
   const placeOrderAfterLogin = async () => {
+    // Prevent duplicate order placement
+    if (hasPlacedOrder) {
+      return;
+    }
+
     try {
       // Get cart data from localStorage
       const redirectData = localStorage.getItem('loginRedirect');
@@ -40,20 +46,40 @@ export default function PlaceOrder() {
       }
 
       const { cart: savedCart } = JSON.parse(redirectData);
-      setCart(savedCart);
-
-      if (!savedCart || savedCart.length === 0) {
+      
+      // Validate cart data
+      if (!savedCart || !Array.isArray(savedCart) || savedCart.length === 0) {
         toast.error("Cart is empty");
         router.push('/');
         return;
       }
 
-      // Prepare order data matching your backend
+      setCart(savedCart);
+
+      // ✅ FIX: Check if order was already placed for this cart
+      const orderKey = `placed_order_${Date.now()}`;
+      const recentOrder = localStorage.getItem('recentOrder');
+      
+      if (recentOrder) {
+        const recentOrderData = JSON.parse(recentOrder);
+        // Check if the same cart was recently placed (within 30 seconds)
+        if (Date.now() - recentOrderData.timestamp < 30000) {
+          toast.success("Order was already placed successfully!");
+          setOrderSuccess(true);
+          setOrderId(recentOrderData.orderId);
+          setIsPlacingOrder(false);
+          return;
+        }
+      }
+
+      // ✅ FIX: Prepare order data with unique identifiers
       const orderData = {
         items: savedCart.map((cartItem: CartItem) => ({
           item: cartItem.item._id,
           quantity: cartItem.quantity,
         })),
+        // Add timestamp to prevent duplicate processing
+        timestamp: Date.now()
       };
 
       console.log("Placing order with data:", orderData);
@@ -74,14 +100,23 @@ export default function PlaceOrder() {
         throw new Error(data.message || "Failed to place order");
       }
 
-      // Order successful
+      // ✅ FIX: Mark that order has been placed
+      setHasPlacedOrder(true);
       setOrderSuccess(true);
       setOrderId(data.order?._id || "");
-      toast.success("Order placed successfully!");
       
-      // Clear cart and redirect data
+      // ✅ FIX: Store recent order info to prevent duplicates
+      localStorage.setItem('recentOrder', JSON.stringify({
+        orderId: data.order?._id,
+        timestamp: Date.now(),
+        cartHash: JSON.stringify(savedCart)
+      }));
+
+      // ✅ FIX: Clear cart and redirect data only after successful order
       localStorage.removeItem('loginRedirect');
       localStorage.removeItem('canteenCart');
+
+      toast.success("Order placed successfully!");
 
     } catch (error: any) {
       console.error("Order placement error:", error);
@@ -143,7 +178,7 @@ export default function PlaceOrder() {
             <h3 className="font-semibold text-gray-900 mb-4 text-lg">Order Summary</h3>
             <div className="space-y-3 mb-4">
               {cart.map((cartItem, index) => (
-                <div key={index} className="flex justify-between items-center">
+                <div key={`${cartItem.item._id}-${index}`} className="flex justify-between items-center">
                   <div className="text-left">
                     <span className="text-gray-700 font-medium">{cartItem.item.name}</span>
                     <span className="text-gray-500 text-sm ml-2">× {cartItem.quantity}</span>
