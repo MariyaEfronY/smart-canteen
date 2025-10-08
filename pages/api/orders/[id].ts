@@ -1,5 +1,4 @@
 // pages/api/orders/[id].ts
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import { dbConnect } from "@/lib/mongoose";
 import Order from "@/models/Order";
@@ -16,37 +15,105 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { id } = req.query;
 
-  // ✅ Fetch order
+  // ✅ Fetch specific order
   if (req.method === "GET") {
     try {
       const order = await Order.findById(id).populate("items.item");
       if (!order) return res.status(404).json({ message: "Order not found" });
+      
+      // Allow users to see their own orders, admins/staff to see all
+      if (decoded.role !== "admin" && decoded.role !== "staff" && order.userId.toString() !== decoded.id) {
+        return res.status(403).json({ message: "Not authorized to view this order" });
+      }
+      
       return res.status(200).json(order);
     } catch (error: any) {
       return res.status(500).json({ message: "Error fetching order", error: error.message });
     }
   }
 
-  // ✅ Update status (admin/staff only)
+  // ✅ Update order status with enhanced authorization
   if (req.method === "PUT") {
-    if (!["admin", "staff"].includes(decoded.role)) {
-      return res.status(403).json({ message: "Not authorized to update orders" });
-    }
-
-    const { status } = req.body;
-    if (!["pending", "preparing", "ready", "completed", "cancelled"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
     try {
-      const updated = await Order.findByIdAndUpdate(id, { status }, { new: true });
-      if (!updated) return res.status(404).json({ message: "Order not found" });
-      return res.status(200).json({ message: "Order status updated", order: updated });
+      const { status } = req.body;
+      
+      // Validate status
+      if (!["pending", "preparing", "ready", "completed", "cancelled"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const order = await Order.findById(id);
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      const isAdminOrStaff = ["admin", "staff"].includes(decoded.role);
+      const isOrderOwner = order.userId.toString() === decoded.id;
+
+      // 🔹 CASE 1: User cancelling their own pending order
+      if (status === "cancelled" && isOrderOwner && order.status === "pending") {
+        const updated = await Order.findByIdAndUpdate(
+          id, 
+          { status }, 
+          { new: true }
+        ).populate("items.item");
+        return res.status(200).json({ 
+          message: "Order cancelled successfully", 
+          order: updated 
+        });
+      }
+
+      // 🔹 CASE 2: Admin/Staff updating any order status
+      if (isAdminOrStaff) {
+        const updated = await Order.findByIdAndUpdate(
+          id, 
+          { status }, 
+          { new: true }
+        ).populate("items.item");
+        return res.status(200).json({ 
+          message: "Order status updated successfully", 
+          order: updated 
+        });
+      }
+
+      // 🔹 CASE 3: User trying to update non-cancellation status
+      if (isOrderOwner && status !== "cancelled") {
+        return res.status(403).json({ 
+          message: "You can only cancel your own pending orders. Contact staff for other status changes." 
+        });
+      }
+
+      // 🔹 CASE 4: User trying to cancel non-pending order
+      if (isOrderOwner && status === "cancelled" && order.status !== "pending") {
+        return res.status(400).json({ 
+          message: "Only pending orders can be cancelled. Contact staff for assistance." 
+        });
+      }
+
+      return res.status(403).json({ message: "Not authorized to update this order" });
+
     } catch (error: any) {
+      console.error("Order update error:", error);
       return res.status(500).json({ message: "Error updating order", error: error.message });
     }
   }
 
-  res.setHeader("Allow", ["GET", "PUT"]);
-  return res.status(405).end();
+  // ✅ DELETE ORDER (Admin only) - NEW FEATURE
+  if (req.method === "DELETE") {
+    try {
+      // Only admin can delete orders
+      if (decoded.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required to delete orders" });
+      }
+
+      const deletedOrder = await Order.findByIdAndDelete(id);
+      if (!deletedOrder) return res.status(404).json({ message: "Order not found" });
+
+      return res.status(200).json({ message: "Order deleted successfully" });
+    } catch (error: any) {
+      console.error("Order delete error:", error);
+      return res.status(500).json({ message: "Error deleting order", error: error.message });
+    }
+  }
+
+  res.setHeader("Allow", ["GET", "PUT", "DELETE"]);
+  return res.status(405).end(`Method ${req.method} Not Allowed`);
 }
