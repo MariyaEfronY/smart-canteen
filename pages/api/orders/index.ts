@@ -4,7 +4,7 @@ import { dbConnect } from "@/lib/mongoose";
 import Order from "@/models/Order";
 import Item from "@/models/Item";
 import User from "@/models/User";
-import { verifyToken } from "@/lib/auth";
+import { getTokenFromReq, verifyToken } from "@/lib/auth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
@@ -12,13 +12,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // ✅ PLACE ORDER
   if (req.method === "POST") {
     try {
-      const token = req.cookies.token;
+      const token = getTokenFromReq(req);
       if (!token) return res.status(401).json({ message: "Not logged in" });
 
       const decoded = verifyToken(token);
       if (!decoded) return res.status(401).json({ message: "Invalid token" });
 
-      const { id: userId, role } = decoded as { id: string; role: "student" | "staff" };
+      const { id: userId, role } = decoded as { id: string; role: "student" | "staff" | "admin" };
 
       // ✅ Fetch full user info from DB to get name
       const user = await User.findById(userId);
@@ -28,12 +28,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!items || !Array.isArray(items) || items.length === 0)
         return res.status(400).json({ message: "No items provided" });
 
-      // ✅ Calculate total amount
+      // ✅ Calculate total amount and validate items
       let totalAmount = 0;
+      const orderItems = [];
+
       for (const orderItem of items) {
         const item = await Item.findById(orderItem.item);
         if (!item) return res.status(404).json({ message: `Item not found: ${orderItem.item}` });
+        if (item.status !== "available") return res.status(400).json({ message: `Item ${item.name} is unavailable` });
+        
         totalAmount += item.price * orderItem.quantity;
+        orderItems.push({
+          item: item._id,
+          quantity: orderItem.quantity
+        });
       }
 
       // ✅ Create new order
@@ -41,14 +49,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId,
         userName: user.name,
         role,
-        items,
+        items: orderItems,
         totalAmount,
         status: "pending",
       });
 
+      // ✅ Populate the created order with item details
+      const populatedOrder = await Order.findById(newOrder._id)
+        .populate("items.item", "name price imageUrl");
+
       return res.status(201).json({
         message: "Order placed successfully",
-        order: newOrder,
+        order: populatedOrder,
       });
     } catch (err: any) {
       console.error("❌ Order Create Error:", err);
@@ -59,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // ✅ GET MY ORDERS
   if (req.method === "GET") {
     try {
-      const token = req.cookies.token;
+      const token = getTokenFromReq(req);
       if (!token) return res.status(401).json({ message: "Not logged in" });
 
       const decoded = verifyToken(token);

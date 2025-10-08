@@ -157,16 +157,25 @@ export default function Home() {
 
   const categories = ["all", ...new Set(menuItems.map(item => item.category))];
 
-  // ✅ SIMPLE: Handle order placement - show login prompt if not logged in
-  const handlePlaceOrder = async () => {
-    if (cart.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
+  // In your main page component (app/page.tsx)
+const handlePlaceOrder = async () => {
+  if (cart.length === 0) {
+    toast.error("Your cart is empty");
+    return;
+  }
 
-    // Always show login prompt since we're not checking auth status
-    setShowLoginPrompt(true);
+  // Save cart to localStorage before redirecting to login
+  const redirectData = {
+    redirectTo: '/place-order',
+    message: 'Please complete your order after login',
+    cart: cart,
+    fromOrder: true
   };
+  localStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+  
+  // Redirect to login page
+  router.push('/login');
+};
 
   const handleLoginForOrder = () => {
     // Save current cart to localStorage before redirecting to login

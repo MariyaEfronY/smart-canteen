@@ -1,7 +1,8 @@
+// app/student/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, CreditCard, Calendar, Utensils } from "lucide-react";
+import { Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, CreditCard, Utensils, RefreshCw } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +33,7 @@ export default function StudentDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
@@ -41,7 +43,9 @@ export default function StudentDashboard() {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch("/api/auth/me");
+      const response = await fetch("/api/auth/me", {
+        credentials: "include"
+      });
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
@@ -55,28 +59,33 @@ export default function StudentDashboard() {
   };
 
   const fetchOrders = async () => {
-  try {
-    setIsLoading(true);
-    const response = await fetch("/api/orders", {
-      credentials: "include" // Important for session cookies
-    });
-    
-    if (response.ok) {
-      const ordersData = await response.json();
-      setOrders(ordersData);
-    } else if (response.status === 401) {
-      // Redirect to login if unauthorized
-      router.push("/login");
-    } else {
-      toast.error("Failed to fetch orders");
+    try {
+      setIsRefreshing(true);
+      const response = await fetch("/api/orders", {
+        credentials: "include",
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (response.ok) {
+        const ordersData = await response.json();
+        console.log("Fetched orders:", ordersData);
+        setOrders(ordersData);
+      } else if (response.status === 401) {
+        toast.error("Please login again");
+        router.push("/login");
+      } else {
+        toast.error("Failed to fetch orders");
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast.error("Error loading orders");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    toast.error("Error loading orders");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleCancelOrder = async (orderId: string) => {
     if (!confirm("Are you sure you want to cancel this order?")) return;
@@ -85,6 +94,7 @@ export default function StudentDashboard() {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ status: "cancelled" }),
       });
 
@@ -92,7 +102,8 @@ export default function StudentDashboard() {
         toast.success("Order cancelled successfully!");
         fetchOrders();
       } else {
-        toast.error("Failed to cancel order");
+        const errorData = await response.json();
+        toast.error(errorData.message || "Failed to cancel order");
       }
     } catch (error) {
       console.error("Error cancelling order:", error);
@@ -102,7 +113,10 @@ export default function StudentDashboard() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
+      const response = await fetch("/api/auth/logout", { 
+        method: "POST",
+        credentials: "include"
+      });
       if (response.ok) {
         toast.success("Logged out successfully!");
         router.push("/");
@@ -151,7 +165,19 @@ export default function StudentDashboard() {
     pending: orders.filter(order => order.status === "pending").length,
     preparing: orders.filter(order => order.status === "preparing").length,
     completed: orders.filter(order => order.status === "completed").length,
+    cancelled: orders.filter(order => order.status === "cancelled").length,
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -172,19 +198,29 @@ export default function StudentDashboard() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-white bg-opacity-20 text-white px-6 py-3 rounded-xl hover:bg-opacity-30 transition-all duration-300 flex items-center gap-2"
-            >
-              <LogOut size={20} /> Logout
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={fetchOrders}
+                disabled={isRefreshing}
+                className="bg-white bg-opacity-20 text-white px-4 py-2 rounded-xl hover:bg-opacity-30 transition-all duration-300 flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+                Refresh
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-white bg-opacity-20 text-white px-6 py-3 rounded-xl hover:bg-opacity-30 transition-all duration-300 flex items-center gap-2"
+              >
+                <LogOut size={20} /> Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
@@ -232,32 +268,50 @@ export default function StudentDashboard() {
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-semibold">Cancelled</p>
+                <p className="text-3xl font-bold text-red-600">{stats.cancelled}</p>
+              </div>
+              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <XCircle className="text-red-600" size={24} />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Orders Section */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex justify-between items-center">
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
               <Utensils className="text-blue-500" size={28} />
               My Orders
             </h2>
+            <button
+              onClick={() => router.push('/')}
+              className="bg-green-500 text-white px-6 py-2 rounded-xl hover:bg-green-600 transition-colors duration-300"
+            >
+              Order More Food
+            </button>
           </div>
 
           {/* Tabs */}
           <div className="border-b border-gray-200">
-            <div className="px-6 flex space-x-8">
+            <div className="px-6 flex space-x-8 overflow-x-auto">
               {[
-                { id: "all", label: "All Orders", count: orders.length },
+                { id: "all", label: "All Orders", count: stats.total },
                 { id: "pending", label: "Pending", count: stats.pending },
                 { id: "preparing", label: "Preparing", count: stats.preparing },
                 { id: "ready", label: "Ready", count: orders.filter(o => o.status === "ready").length },
                 { id: "completed", label: "Completed", count: stats.completed },
-                { id: "cancelled", label: "Cancelled", count: orders.filter(o => o.status === "cancelled").length },
+                { id: "cancelled", label: "Cancelled", count: stats.cancelled },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-all duration-300 ${
                     activeTab === tab.id
                       ? "border-blue-500 text-blue-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -274,10 +328,10 @@ export default function StudentDashboard() {
 
           {/* Orders List */}
           <div className="p-6">
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading your orders...</p>
+            {isRefreshing ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="text-gray-500 mt-2">Refreshing orders...</p>
               </div>
             ) : filteredOrders.length === 0 ? (
               <div className="text-center py-16">
@@ -288,7 +342,7 @@ export default function StudentDashboard() {
                   {activeTab === "all" ? "No orders found" : `No ${activeTab} orders`}
                 </p>
                 <button
-                  onClick={() => router.push("/menu")}
+                  onClick={() => router.push('/')}
                   className="bg-gradient-to-r from-blue-500 to-green-500 text-white px-8 py-3 rounded-xl hover:from-blue-600 hover:to-green-600 transition-all duration-300"
                 >
                   Browse Menu
@@ -343,12 +397,9 @@ export default function StudentDashboard() {
                             <div key={index} className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <img
-                                  src={orderItem.item.imageUrl}
+                                  src={orderItem.item.imageUrl || "/placeholder-food.jpg"}
                                   alt={orderItem.item.name}
                                   className="w-12 h-12 rounded-lg object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "/placeholder-food.jpg";
-                                  }}
                                 />
                                 <div>
                                   <p className="font-medium text-gray-900">{orderItem.item.name}</p>
