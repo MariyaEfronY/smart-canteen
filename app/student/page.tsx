@@ -186,7 +186,7 @@ export default function StudentDashboard() {
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-6 gap-4">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center shadow-lg">
                 <User size={24} className="text-white" />
@@ -198,20 +198,21 @@ export default function StudentDashboard() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={fetchOrders}
                 disabled={isRefreshing}
-                className="bg-white bg-opacity-20 text-white px-4 py-2 rounded-xl hover:bg-opacity-30 transition-all duration-300 flex items-center gap-2 disabled:opacity-50"
+                className="flex-1 sm:flex-none bg-white bg-opacity-20 text-white px-4 py-3 sm:py-2 rounded-xl hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
               >
                 <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="bg-white bg-opacity-20 text-white px-6 py-3 rounded-xl hover:bg-opacity-30 transition-all duration-300 flex items-center gap-2"
+                className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-3 sm:px-6 sm:py-3 rounded-xl hover:from-red-600 hover:to-orange-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base"
               >
-                <LogOut size={20} /> Logout
+                <LogOut size={18} />
+                <span>Logout</span>
               </button>
             </div>
           </div>
@@ -220,63 +221,63 @@ export default function StudentDashboard() {
 
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+        <div className="grid grid-cols-2 lg:grid-cols-5 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold">Total Orders</p>
-                <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Total Orders</p>
+                <p className="text-xl sm:text-3xl font-bold text-blue-600">{stats.total}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <CreditCard className="text-blue-600" size={24} />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <CreditCard className="text-blue-600" size={20} />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold">Pending</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Pending</p>
+                <p className="text-xl sm:text-3xl font-bold text-yellow-600">{stats.pending}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                <Clock className="text-yellow-600" size={24} />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                <Clock className="text-yellow-600" size={20} />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold">Preparing</p>
-                <p className="text-3xl font-bold text-blue-600">{stats.preparing}</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Preparing</p>
+                <p className="text-xl sm:text-3xl font-bold text-blue-600">{stats.preparing}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <ChefHat className="text-blue-600" size={24} />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <ChefHat className="text-blue-600" size={20} />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold">Completed</p>
-                <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Completed</p>
+                <p className="text-xl sm:text-3xl font-bold text-green-600">{stats.completed}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <CheckCircle className="text-green-600" size={24} />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <CheckCircle className="text-green-600" size={20} />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100 col-span-2 lg:col-span-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold">Cancelled</p>
-                <p className="text-3xl font-bold text-red-600">{stats.cancelled}</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Cancelled</p>
+                <p className="text-xl sm:text-3xl font-bold text-red-600">{stats.cancelled}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                <XCircle className="text-red-600" size={24} />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <XCircle className="text-red-600" size={20} />
               </div>
             </div>
           </div>
@@ -284,14 +285,14 @@ export default function StudentDashboard() {
 
         {/* Orders Section */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-              <Utensils className="text-blue-500" size={28} />
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-3">
+              <Utensils className="text-blue-500" size={24} />
               My Orders
             </h2>
             <button
               onClick={() => router.push('/')}
-              className="bg-green-500 text-white px-6 py-2 rounded-xl hover:bg-green-600 transition-colors duration-300"
+              className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center"
             >
               Order More Food
             </button>
@@ -299,26 +300,27 @@ export default function StudentDashboard() {
 
           {/* Tabs */}
           <div className="border-b border-gray-200">
-            <div className="px-6 flex space-x-8 overflow-x-auto">
+            <div className="px-4 sm:px-6 flex space-x-4 sm:space-x-8 overflow-x-auto">
               {[
-                { id: "all", label: "All Orders", count: stats.total },
+                { id: "all", label: "All", count: stats.total },
                 { id: "pending", label: "Pending", count: stats.pending },
                 { id: "preparing", label: "Preparing", count: stats.preparing },
                 { id: "ready", label: "Ready", count: orders.filter(o => o.status === "ready").length },
-                { id: "completed", label: "Completed", count: stats.completed },
+                { id: "completed", label: "Done", count: stats.completed },
                 { id: "cancelled", label: "Cancelled", count: stats.cancelled },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-all duration-300 ${
+                  className={`py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-300 flex items-center gap-1 ${
                     activeTab === tab.id
                       ? "border-blue-500 text-blue-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
-                  {tab.label}
-                  <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2 rounded-full text-xs">
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.slice(0, 3)}</span>
+                  <span className="bg-gray-100 text-gray-900 py-0.5 px-2 rounded-full text-xs">
                     {tab.count}
                   </span>
                 </button>
@@ -327,7 +329,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* Orders List */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {isRefreshing ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
@@ -335,21 +337,21 @@ export default function StudentDashboard() {
               </div>
             ) : filteredOrders.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Package className="text-blue-500" size={40} />
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Package className="text-blue-500" size={32} />
                 </div>
-                <p className="text-gray-500 text-lg mb-4">
+                <p className="text-gray-500 text-base sm:text-lg mb-4">
                   {activeTab === "all" ? "No orders found" : `No ${activeTab} orders`}
                 </p>
                 <button
                   onClick={() => router.push('/')}
-                  className="bg-gradient-to-r from-blue-500 to-green-500 text-white px-8 py-3 rounded-xl hover:from-blue-600 hover:to-green-600 transition-all duration-300"
+                  className="bg-gradient-to-r from-blue-500 to-green-500 text-white px-6 sm:px-8 py-3 rounded-xl hover:from-blue-600 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
                   Browse Menu
                 </button>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {filteredOrders.map((order) => {
                   const StatusIcon = getStatusInfo(order.status).icon;
                   const statusColor = getStatusInfo(order.status).color;
@@ -358,31 +360,31 @@ export default function StudentDashboard() {
                   return (
                     <div
                       key={order._id}
-                      className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 bg-white"
+                      className="border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white"
                     >
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-lg font-semibold text-gray-900">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-start mb-4 gap-3">
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                            <span className="text-base sm:text-lg font-semibold text-gray-900">
                               Order #{order._id.slice(-8).toUpperCase()}
                             </span>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor} flex items-center gap-1`}>
-                              <StatusIcon size={16} />
+                            <span className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${statusColor} flex items-center gap-1 w-fit`}>
+                              <StatusIcon size={14} />
                               {statusLabel}
                             </span>
                           </div>
-                          <p className="text-gray-600 text-sm">
+                          <p className="text-gray-600 text-xs sm:text-sm">
                             Placed on {formatDate(order.createdAt)}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-green-600">
+                        <div className="w-full sm:w-auto text-left sm:text-right">
+                          <p className="text-xl sm:text-2xl font-bold text-green-600">
                             ₹{order.totalAmount.toFixed(2)}
                           </p>
                           {order.status === "pending" && (
                             <button
                               onClick={() => handleCancelOrder(order._id)}
-                              className="mt-2 text-red-600 hover:text-red-700 text-sm font-medium transition-colors duration-300"
+                              className="mt-2 text-red-600 hover:text-red-700 text-xs sm:text-sm font-medium transition-colors duration-300"
                             >
                               Cancel Order
                             </button>
@@ -391,7 +393,7 @@ export default function StudentDashboard() {
                       </div>
 
                       <div className="border-t border-gray-100 pt-4">
-                        <h4 className="font-semibold text-gray-900 mb-3">Order Items:</h4>
+                        <h4 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base">Order Items:</h4>
                         <div className="space-y-3">
                           {order.items.map((orderItem, index) => (
                             <div key={index} className="flex items-center justify-between">
@@ -399,16 +401,16 @@ export default function StudentDashboard() {
                                 <img
                                   src={orderItem.item.imageUrl || "/placeholder-food.jpg"}
                                   alt={orderItem.item.name}
-                                  className="w-12 h-12 rounded-lg object-cover"
+                                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover"
                                 />
                                 <div>
-                                  <p className="font-medium text-gray-900">{orderItem.item.name}</p>
-                                  <p className="text-gray-600 text-sm">
+                                  <p className="font-medium text-gray-900 text-sm sm:text-base">{orderItem.item.name}</p>
+                                  <p className="text-gray-600 text-xs sm:text-sm">
                                     ₹{orderItem.item.price} × {orderItem.quantity}
                                   </p>
                                 </div>
                               </div>
-                              <p className="font-semibold text-gray-900">
+                              <p className="font-semibold text-gray-900 text-sm sm:text-base">
                                 ₹{(orderItem.item.price * orderItem.quantity).toFixed(2)}
                               </p>
                             </div>
