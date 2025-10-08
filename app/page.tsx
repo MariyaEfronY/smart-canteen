@@ -272,6 +272,13 @@ export default function Home() {
                 About
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
               </Link>
+               <Link 
+                href="/contact" 
+                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
+              >
+                Contact
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
+              </Link>
             </div>
 
             {/* Desktop Auth & Cart Buttons */}
