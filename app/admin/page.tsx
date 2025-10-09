@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { 
   Plus, Edit, Trash2, Upload, X, LogOut, Menu, X as CloseIcon, 
   Calendar, Utensils, Package, ChefHat, CheckCircle, Clock, 
-  XCircle, RefreshCw, DollarSign, Users, TrendingUp, Filter, Search
+  XCircle, RefreshCw, DollarSign, Users, TrendingUp, Filter, Search,
+  BarChart3, ShoppingBag, Eye, EyeOff, Download, Printer, Share2,
+  MessageCircle, Bell, Settings, User, Shield, CreditCard
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -51,10 +53,13 @@ export default function AdminDashboard() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("menu-items");
+  const [activeSection, setActiveSection] = useState("dashboard");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [notificationCount, setNotificationCount] = useState(3);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -63,6 +68,21 @@ export default function AdminDashboard() {
     category: "",
     status: "available",
   });
+
+  // ✅ Live refresh interval
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (autoRefresh && activeSection === "view-orders") {
+      interval = setInterval(() => {
+        fetchOrders();
+      }, 10000); // Refresh every 10 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh, activeSection]);
 
   // ✅ Fetch all menu items
   const fetchItems = async () => {
@@ -88,6 +108,13 @@ export default function AdminDashboard() {
       if (response.ok) {
         const ordersData = await response.json();
         setOrders(ordersData);
+        
+        // Update notification count based on pending orders
+        const pendingCount = ordersData.filter((order: Order) => 
+          order.status === "pending" || order.status === "preparing"
+        ).length;
+        setNotificationCount(pendingCount);
+        
       } else if (response.status === 401) {
         toast.error("Please login again");
         router.push("/login");
@@ -204,24 +231,6 @@ export default function AdminDashboard() {
       fetchItems();
     } catch (error: any) {
       toast.error(error.message || "Error deleting item");
-    }
-  };
-
-  // ✅ Status update for menu items
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    try {
-      const response = await fetch(`/api/items/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to update status");
-
-      toast.success("Status updated successfully!");
-      fetchItems();
-    } catch (error: any) {
-      toast.error(error.message || "Error updating status");
     }
   };
 
@@ -357,6 +366,17 @@ export default function AdminDashboard() {
     });
   };
 
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
+
   // ✅ Filter and search orders
   const filteredOrders = orders.filter(order => {
     const matchesStatus = statusFilter === "all" || order.status === statusFilter;
@@ -375,8 +395,45 @@ export default function AdminDashboard() {
       .filter(order => order.status === "completed")
       .reduce((sum, order) => sum + order.totalAmount, 0),
     totalItems: items.length,
-    categories: new Set(items.map((item) => item.category)).size
+    categories: new Set(items.map((item) => item.category)).size,
+    todayOrders: orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      const today = new Date();
+      return orderDate.toDateString() === today.toDateString();
+    }).length
   };
+
+  // ✅ Quick actions
+  const quickActions = [
+    {
+      icon: Plus,
+      label: "Add Menu Item",
+      description: "Create new food item",
+      action: () => handleNavigation("add-menu"),
+      color: "bg-green-500 hover:bg-green-600"
+    },
+    {
+      icon: RefreshCw,
+      label: "Refresh Data",
+      description: "Update all information",
+      action: () => { fetchItems(); fetchOrders(); },
+      color: "bg-blue-500 hover:bg-blue-600"
+    },
+    {
+      icon: Download,
+      label: "Export Report",
+      description: "Download sales data",
+      action: () => toast.success("Export feature coming soon!"),
+      color: "bg-purple-500 hover:bg-purple-600"
+    },
+    {
+      icon: Settings,
+      label: "Settings",
+      description: "Manage preferences",
+      action: () => toast.success("Settings panel coming soon!"),
+      color: "bg-gray-500 hover:bg-gray-600"
+    }
+  ];
 
   useEffect(() => {
     return () => {
@@ -387,25 +444,143 @@ export default function AdminDashboard() {
   // ✅ Render different sections based on activeSection
   const renderSection = () => {
     switch (activeSection) {
+      case "dashboard":
+        return (
+          <div className="space-y-6">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">Total Revenue</p>
+                    <p className="text-2xl font-bold mt-1">₹{stats.totalRevenue.toFixed(2)}</p>
+                    <p className="text-green-200 text-xs mt-2">{stats.completedOrders} completed orders</p>
+                  </div>
+                  <DollarSign className="w-8 h-8 text-green-200" />
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium">Today's Orders</p>
+                    <p className="text-2xl font-bold mt-1">{stats.todayOrders}</p>
+                    <p className="text-blue-200 text-xs mt-2">{stats.pendingOrders} pending</p>
+                  </div>
+                  <ShoppingBag className="w-8 h-8 text-blue-200" />
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium">Menu Items</p>
+                    <p className="text-2xl font-bold mt-1">{stats.totalItems}</p>
+                    <p className="text-purple-200 text-xs mt-2">{stats.categories} categories</p>
+                  </div>
+                  <Utensils className="w-8 h-8 text-purple-200" />
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-orange-100 text-sm font-medium">Active Orders</p>
+                    <p className="text-2xl font-bold mt-1">{stats.pendingOrders + stats.preparingOrders}</p>
+                    <p className="text-orange-200 text-xs mt-2">Need attention</p>
+                  </div>
+                  <Package className="w-8 h-8 text-orange-200" />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {quickActions.map((action, index) => (
+                <button
+                  key={index}
+                  onClick={action.action}
+                  className={`${action.color} text-white rounded-xl p-4 text-left transition-all duration-300 transform hover:scale-105 hover:shadow-xl`}
+                >
+                  <action.icon className="w-8 h-8 mb-2" />
+                  <h3 className="font-semibold text-lg">{action.label}</h3>
+                  <p className="text-white text-opacity-90 text-sm mt-1">{action.description}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Clock className="text-blue-500" />
+                  Recent Activity
+                </h2>
+                <button
+                  onClick={fetchOrders}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  View All
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {orders.slice(0, 5).map((order) => {
+                  const statusInfo = getStatusInfo(order.status);
+                  const StatusIcon = statusInfo.icon;
+
+                  return (
+                    <div key={order._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors duration-200">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${statusInfo.color.split(' ')[1]}`}>
+                          <StatusIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">{order.userName}</p>
+                          <p className="text-gray-600 text-sm">Order #{order._id.slice(-6)} • {formatTimeAgo(order.createdAt)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-green-600">₹{order.totalAmount.toFixed(2)}</p>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                          {statusInfo.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+
       case "menu-items":
         return (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-800">Menu Items</h2>
-              <button
-                onClick={() => handleNavigation("add-menu")}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
-              >
-                <Plus size={20} /> Add New Item
-              </button>
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                  <Utensils className="text-green-500" size={28} />
+                  Menu Management
+                </h2>
+                <button
+                  onClick={() => handleNavigation("add-menu")}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 flex items-center gap-2 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  <Plus size={20} /> Add New Item
+                </button>
+              </div>
             </div>
 
             {items.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No menu items found</p>
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Utensils className="text-green-500" size={40} />
+                </div>
+                <p className="text-gray-500 text-lg mb-4">No menu items found</p>
                 <button
                   onClick={() => handleNavigation("add-menu")}
-                  className="mt-4 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
                 >
                   Add Your First Item
                 </button>
@@ -413,50 +588,54 @@ export default function AdminDashboard() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Item
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Price
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Category
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {items.map((item) => (
-                      <tr key={item._id} className="hover:bg-gray-50">
+                      <tr key={item._id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 group">
                         <td className="px-6 py-4 whitespace-nowrap flex items-center gap-3">
                           <img
                             src={item.imageUrl}
                             alt={item.name}
-                            className="h-12 w-12 rounded-lg object-cover"
+                            className="h-12 w-12 rounded-lg object-cover shadow-md group-hover:scale-110 transition-transform duration-300"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = "/placeholder-image.jpg";
                             }}
                           />
-                          <span className="font-medium">{item.name}</span>
+                          <span className="font-medium text-gray-900 group-hover:text-green-700 transition-colors duration-300">
+                            {item.name}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
+                        <td className="px-6 py-4 text-sm text-gray-700 max-w-xs group-hover:text-gray-900 transition-colors duration-300">
                           {item.description}
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                          ₹{item.price.toFixed(2)}
+                        <td className="px-6 py-4">
+                          <span className="text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                            ₹{item.price.toFixed(2)}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="px-2 inline-flex text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          <span className="px-3 py-1.5 inline-flex text-sm font-semibold rounded-full bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200 shadow-sm">
                             {item.category}
                           </span>
                         </td>
@@ -479,16 +658,20 @@ export default function AdminDashboard() {
                                 toast.error(error.message || "Failed to update status");
                               }
                             }}
-                            className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                            className={`px-3 py-1.5 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-green-500 transition-all duration-300 transform hover:scale-105 ${
+                              item.status === "available" 
+                                ? "bg-gradient-to-r from-green-100 to-emerald-100 text-green-800" 
+                                : "bg-gradient-to-r from-red-100 to-pink-100 text-red-800"
+                            }`}
                           >
                             <option value="available">Available</option>
                             <option value="unavailable">Unavailable</option>
                           </select>
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td className="px-6 py-4">
                           <button
                             onClick={() => handleDeleteItem(item._id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="p-2 rounded-lg bg-gradient-to-r from-red-50 to-pink-50 text-red-600 hover:from-red-100 hover:to-pink-100 hover:text-red-700 hover:scale-110 transition-all duration-300 shadow-sm"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -512,7 +695,28 @@ export default function AdminDashboard() {
                   Orders Management
                 </h2>
                 
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  {/* Auto Refresh Toggle */}
+                  <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-2">
+                    <button
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-md text-sm font-medium transition-all duration-300 ${
+                        autoRefresh 
+                          ? "bg-green-500 text-white" 
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {autoRefresh ? <Eye size={16} /> : <EyeOff size={16} />}
+                      Auto Refresh
+                    </button>
+                    {autoRefresh && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs text-gray-600">Live</span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Search */}
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
@@ -542,10 +746,10 @@ export default function AdminDashboard() {
                   <button
                     onClick={fetchOrders}
                     disabled={isRefreshing}
-                    className="bg-purple-500 text-white px-4 py-2 rounded-xl hover:bg-purple-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50"
+                    className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 transform hover:scale-105"
                   >
                     <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
-                    Refresh
+                    {isRefreshing ? "Refreshing..." : "Refresh"}
                   </button>
                 </div>
               </div>
@@ -575,7 +779,7 @@ export default function AdminDashboard() {
                         setSearchTerm("");
                         setStatusFilter("all");
                       }}
-                      className="bg-purple-500 text-white px-6 py-2 rounded-xl hover:bg-purple-600 transition-colors duration-300"
+                      className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-2 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-colors duration-300 transform hover:scale-105"
                     >
                       Clear Filters
                     </button>
@@ -590,7 +794,7 @@ export default function AdminDashboard() {
                     return (
                       <div
                         key={order._id}
-                        className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 bg-white"
+                        className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 bg-white group"
                       >
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
                           <div className="flex-1">
@@ -629,7 +833,7 @@ export default function AdminDashboard() {
                               {statusInfo.nextAction && (
                                 <button
                                   onClick={() => handleOrderStatusUpdate(order._id, statusInfo.nextStatus!)}
-                                  className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors duration-300 text-sm font-medium"
+                                  className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-300 text-sm font-medium transform hover:scale-105"
                                 >
                                   {statusInfo.nextAction}
                                 </button>
@@ -638,7 +842,7 @@ export default function AdminDashboard() {
                               {order.status === "pending" && (
                                 <button
                                   onClick={() => handleOrderStatusUpdate(order._id, "cancelled")}
-                                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors duration-300 text-sm font-medium"
+                                  className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 text-sm font-medium transform hover:scale-105"
                                 >
                                   Cancel Order
                                 </button>
@@ -646,7 +850,7 @@ export default function AdminDashboard() {
                               
                               <button
                                 onClick={() => handleDeleteOrder(order._id)}
-                                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-300 text-sm font-medium"
+                                className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-4 py-2 rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 text-sm font-medium transform hover:scale-105"
                               >
                                 Delete
                               </button>
@@ -659,12 +863,12 @@ export default function AdminDashboard() {
                           <h4 className="font-semibold text-gray-900 mb-3 text-lg">Order Items:</h4>
                           <div className="space-y-3">
                             {order.items.map((orderItem, index) => (
-                              <div key={index} className="flex items-center justify-between">
+                              <div key={index} className="flex items-center justify-between group-hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
                                 <div className="flex items-center gap-3 flex-1">
                                   <img
                                     src={orderItem.item.imageUrl || "/placeholder-food.jpg"}
                                     alt={orderItem.item.name}
-                                    className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                                    className="w-16 h-16 rounded-lg object-cover border border-gray-200 shadow-sm"
                                   />
                                   <div className="flex-1">
                                     <p className="font-medium text-gray-900">{orderItem.item.name}</p>
@@ -695,60 +899,104 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Toaster position="top-right" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'linear-gradient(135deg, #10B981, #059669)',
+            color: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+          },
+        }}
+      />
 
-      {/* Navigation Bar */}
-      <nav className="bg-white shadow-lg border-b border-gray-200">
+      {/* Enhanced Navigation Bar */}
+      <nav className="bg-white shadow-2xl border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-20">
             {/* Logo/Brand */}
-            <div className="flex items-center">
-              <Utensils className="h-8 w-8 text-green-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Admin Panel</span>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <span className="text-xl font-bold text-gray-900">Admin Panel</span>
+                <p className="text-gray-500 text-xs">Campus Canteen Management</p>
+              </div>
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-4">
-              <button
-                onClick={() => handleNavigation("menu-items")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeSection === "menu-items"
-                    ? "bg-green-100 text-green-700 border border-green-200"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                Menu Items
-              </button>
-              <button
-                onClick={() => handleNavigation("view-orders")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeSection === "view-orders"
-                    ? "bg-purple-100 text-purple-700 border border-purple-200"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                View Orders
-              </button>
+            <div className="hidden lg:flex items-center space-x-6">
+              {[
+                { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+                { id: "menu-items", label: "Menu Items", icon: Utensils },
+                { id: "view-orders", label: "Orders", icon: Package },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigation(item.id)}
+                  className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 flex items-center gap-3 group ${
+                    activeSection === item.id
+                      ? `bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg`
+                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                >
+                  <item.icon size={20} className={activeSection === item.id ? "text-white" : "text-green-500"} />
+                  {item.label}
+                </button>
+              ))}
+              
               <button
                 onClick={() => handleNavigation("add-menu")}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors"
+                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 flex items-center gap-3 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 <Plus size={20} /> Add Menu
               </button>
+
+              {/* Notifications */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all duration-300 transform hover:scale-110 relative"
+                >
+                  <Bell size={20} />
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                      {notificationCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
               <button
                 onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2 transition-colors"
+                className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-6 py-3 rounded-xl hover:from-red-600 hover:to-pink-600 flex items-center gap-3 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 <LogOut size={20} /> Logout
               </button>
             </div>
 
             {/* Mobile menu button */}
-            <div className="md:hidden">
+            <div className="lg:hidden flex items-center space-x-3">
+              {/* Notifications for mobile */}
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all duration-300 transform hover:scale-110 relative"
+              >
+                <Bell size={20} />
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                    {notificationCount}
+                  </span>
+                )}
+              </button>
+
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="p-3 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300 transition-all duration-300 transform hover:scale-110 shadow-lg"
               >
                 {mobileMenuOpen ? <CloseIcon size={24} /> : <Menu size={24} />}
               </button>
@@ -758,39 +1006,41 @@ export default function AdminDashboard() {
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
+          <div className="lg:hidden bg-white border-t border-gray-200 shadow-2xl">
             <div className="px-4 py-3 space-y-2">
-              <button
-                onClick={() => handleNavigation("menu-items")}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                  activeSection === "menu-items"
-                    ? "bg-green-100 text-green-700 border border-green-200"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                Menu Items
-              </button>
-              <button
-                onClick={() => handleNavigation("view-orders")}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                  activeSection === "view-orders"
-                    ? "bg-purple-100 text-purple-700 border border-purple-200"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                View Orders
-              </button>
+              {[
+                { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+                { id: "menu-items", label: "Menu Items", icon: Utensils },
+                { id: "view-orders", label: "Orders", icon: Package },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigation(item.id)}
+                  className={`w-full text-left px-4 py-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 flex items-center gap-4 ${
+                    activeSection === item.id
+                      ? `bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg`
+                      : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <item.icon size={24} />
+                  {item.label}
+                </button>
+              ))}
+              
               <button
                 onClick={() => handleNavigation("add-menu")}
-                className="w-full text-left bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors"
+                className="w-full text-left bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-4 rounded-xl hover:from-green-600 hover:to-emerald-600 flex items-center gap-4 transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
-                <Plus size={20} /> Add Menu
+                <Plus size={24} />
+                Add Menu Item
               </button>
+
               <button
                 onClick={handleLogout}
-                className="w-full text-left bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 flex items-center gap-2 transition-colors"
+                className="w-full text-left bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-4 rounded-xl hover:from-red-600 hover:to-pink-600 flex items-center gap-4 transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
-                <LogOut size={20} /> Logout
+                <LogOut size={24} />
+                Logout
               </button>
             </div>
           </div>
@@ -799,73 +1049,53 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-800">Total Menu Items</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">{stats.totalItems}</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-800">Categories</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-2">{stats.categories}</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-800">Total Orders</h3>
-            <p className="text-3xl font-bold text-purple-600 mt-2">{stats.totalOrders}</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-800">Revenue</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">₹{stats.totalRevenue.toFixed(2)}</p>
-          </div>
-        </div>
-
         {/* Dynamic Section Content */}
         {renderSection()}
       </div>
 
       {/* Add Item Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-semibold">Add New Menu Item</h2>
-              <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-200 transform transition-all duration-300">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+              <h2 className="text-2xl font-bold text-gray-800">Add New Menu Item</h2>
+              <button 
+                onClick={handleCloseModal}
+                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all duration-300 transform hover:scale-110"
+              >
                 <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={handleAddItem} className="p-6 space-y-4">
+            <form onSubmit={handleAddItem} className="p-6 space-y-6">
               {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Item Image *
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-green-400">
+                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:border-green-400 transition-all duration-300 bg-gray-50 hover:bg-green-50 group cursor-pointer">
                   {imagePreview ? (
                     <div className="relative">
                       <img
                         src={imagePreview}
                         alt="Preview"
-                        className="mx-auto h-32 w-32 object-cover rounded-lg"
+                        className="mx-auto h-40 w-40 object-cover rounded-2xl shadow-lg group-hover:scale-105 transition-transform duration-300"
                       />
                       <button
                         type="button"
-                        onClick={() => {
-                          resetForm();
-                        }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        onClick={resetForm}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-all duration-300 transform hover:scale-110 shadow-lg"
                       >
                         <X size={16} />
                       </button>
                     </div>
                   ) : (
                     <>
-                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                      <label htmlFor="image-upload" className="cursor-pointer mt-2 block">
-                        <span className="text-green-600 font-medium">Click to upload</span>
+                      <Upload className="mx-auto h-16 w-16 text-gray-400 mb-4 group-hover:text-green-500 transition-colors duration-300" />
+                      <label htmlFor="image-upload" className="cursor-pointer block">
+                        <span className="text-green-600 font-semibold text-lg group-hover:text-green-700 transition-colors duration-300">
+                          Click to upload
+                        </span>
                         <input
                           id="image-upload"
                           name="image"
@@ -876,108 +1106,108 @@ export default function AdminDashboard() {
                           required
                         />
                       </label>
-                      <p className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG up to 5MB</p>
+                      <p className="text-xs text-gray-500 mt-2">PNG, JPG, JPEG up to 5MB</p>
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter item name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
-                />
-              </div>
+              {/* Form Fields */}
+              {[
+                { name: "name", label: "Item Name", type: "text", placeholder: "Enter item name" },
+                { name: "price", label: "Price", type: "number", placeholder: "Enter price" },
+              ].map((field) => (
+                <div key={field.name}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {field.label} *
+                  </label>
+                  <input
+                    type={field.type}
+                    name={field.name}
+                    value={formData[field.name as keyof typeof formData]}
+                    onChange={handleInputChange}
+                    placeholder={field.placeholder}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 bg-white hover:bg-gray-50"
+                    required
+                    min={field.type === "number" ? "0" : undefined}
+                    step={field.type === "number" ? "0.01" : undefined}
+                  />
+                </div>
+              ))}
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description *
+                </label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
                   placeholder="Enter item description"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none transition-all duration-300 bg-white hover:bg-gray-50"
                   rows={3}
                   required
                 />
               </div>
 
-              {/* Price */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  placeholder="Enter price"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  min="0"
-                  step="0.01"
-                  required
-                />
-              </div>
+              {/* Category & Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Category *
+                  </label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 bg-white hover:bg-gray-50"
+                    required
+                  >
+                    <option value="">🍽️ Select category</option>
+                    <option value="breakfast">🍳 Breakfast</option>
+                    <option value="main-course">🍛 Main Course</option>
+                    <option value="snacks">🥪 Snacks</option>
+                    <option value="beverages">☕ Beverages</option>
+                    <option value="desserts">🧁 Desserts</option>
+                    <option value="fast-food">🍔 Fast Food</option>
+                    <option value="south-indian">🍲 South Indian</option>
+                    <option value="north-indian">🥘 North Indian</option>
+                    <option value="chinese">🍜 Chinese</option>
+                    <option value="bakery">🍩 Bakery</option>
+                    <option value="healthy">🥗 Healthy Options</option>
+                  </select>
+                </div>
 
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">🍽️ Select category</option>
-                  <option value="breakfast">🍳 Breakfast</option>
-                  <option value="main-course">🍛 Main Course</option>
-                  <option value="snacks">🥪 Snacks</option>
-                  <option value="beverages">☕ Beverages</option>
-                  <option value="desserts">🧁 Desserts</option>
-                  <option value="fast-food">🍔 Fast Food</option>
-                  <option value="south-indian">🍲 South Indian</option>
-                  <option value="north-indian">🥘 North Indian</option>
-                  <option value="chinese">🍜 Chinese</option>
-                  <option value="bakery">🍩 Bakery</option>
-                  <option value="healthy">🥗 Healthy Options</option>
-                </select>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                >
-                  <option value="available">Available</option>
-                  <option value="unavailable">Unavailable</option>
-                </select>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 bg-white hover:bg-gray-50"
+                  >
+                    <option value="available">Available</option>
+                    <option value="unavailable">Unavailable</option>
+                  </select>
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 shadow-lg hover:shadow-xl font-semibold text-lg"
               >
                 {isLoading ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Adding...
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Adding Item...
                   </>
                 ) : (
                   <>
-                    <Plus size={20} /> Add Item
+                    <Plus size={24} /> Add Menu Item
                   </>
                 )}
               </button>
