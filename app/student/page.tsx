@@ -1,8 +1,8 @@
 // app/student/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, CreditCard, Utensils, RefreshCw, GraduationCap, BookOpen } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, CreditCard, Utensils, RefreshCw, GraduationCap, BookOpen, Bell, Wifi, WifiOff } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -35,11 +35,127 @@ export default function StudentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<"online" | "offline">("online");
+  
+  // Refs for interval management
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
 
   useEffect(() => {
     fetchUserData();
     fetchOrders();
+    setupAutoRefresh();
+    setupConnectionListener();
+
+    return () => {
+      // Cleanup intervals on unmount
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
   }, []);
+
+  // Setup auto-refresh based on autoRefresh state
+  useEffect(() => {
+    setupAutoRefresh();
+  }, [autoRefresh]);
+
+  const setupConnectionListener = () => {
+    const handleOnline = () => {
+      setConnectionStatus("online");
+      toast.success("Connection restored - Live updates enabled");
+      setupAutoRefresh();
+    };
+
+    const handleOffline = () => {
+      setConnectionStatus("offline");
+      toast.error("Connection lost - Live updates paused");
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  };
+
+  const setupAutoRefresh = () => {
+    // Clear existing interval
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+
+    // Only setup auto-refresh if enabled and online
+    if (autoRefresh && connectionStatus === "online") {
+      refreshIntervalRef.current = setInterval(() => {
+        const now = Date.now();
+        // Only refresh if last fetch was more than 2 seconds ago to avoid spam
+        if (now - lastFetchTimeRef.current > 2000) {
+          silentRefresh();
+        }
+      }, 5000); // Refresh every 5 seconds
+    }
+  };
+
+  const silentRefresh = async () => {
+    try {
+      const response = await fetch("/api/orders", {
+        credentials: "include",
+        headers: {
+          'Cache-Control': 'no-cache',
+          'X-Silent-Refresh': 'true' // Header to identify silent refreshes
+        }
+      });
+      
+      if (response.ok) {
+        const ordersData = await response.json();
+        setOrders(ordersData);
+        lastFetchTimeRef.current = Date.now();
+        
+        // Check for status changes and show notifications
+        checkForStatusChanges(ordersData);
+      }
+    } catch (error) {
+      console.error("Silent refresh failed:", error);
+    }
+  };
+
+  const checkForStatusChanges = (newOrders: Order[]) => {
+    if (orders.length === 0) return;
+
+    newOrders.forEach(newOrder => {
+      const oldOrder = orders.find(order => order._id === newOrder._id);
+      if (oldOrder && oldOrder.status !== newOrder.status) {
+        // Status changed - show notification
+        showStatusChangeNotification(oldOrder, newOrder);
+      }
+    });
+  };
+
+  const showStatusChangeNotification = (oldOrder: Order, newOrder: Order) => {
+    const statusMessages = {
+      "pending": "Order placed and waiting for confirmation",
+      "preparing": "Your order is being prepared! 👨‍🍳",
+      "ready": "Your order is ready for pickup! 🎉",
+      "completed": "Order completed! Enjoy your meal! 😋",
+      "cancelled": "Order has been cancelled"
+    };
+
+    const message = statusMessages[newOrder.status as keyof typeof statusMessages];
+    if (message) {
+      toast.success(`Order #${newOrder._id.slice(-8)}: ${message}`, {
+        duration: 4000,
+        icon: '🎯'
+      });
+    }
+  };
 
   const fetchUserData = async () => {
     try {
@@ -58,7 +174,7 @@ export default function StudentDashboard() {
     }
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (showToast = true) => {
     try {
       setIsRefreshing(true);
       const response = await fetch("/api/orders", {
@@ -72,6 +188,11 @@ export default function StudentDashboard() {
         const ordersData = await response.json();
         console.log("Fetched orders:", ordersData);
         setOrders(ordersData);
+        lastFetchTimeRef.current = Date.now();
+        
+        if (showToast) {
+          toast.success(`Orders updated! Found ${ordersData.length} orders`);
+        }
       } else if (response.status === 401) {
         toast.error("Please login again");
         router.push("/login");
@@ -87,6 +208,17 @@ export default function StudentDashboard() {
     }
   };
 
+  const handleManualRefresh = () => {
+    fetchOrders(true);
+    // Reset auto-refresh timer
+    setupAutoRefresh();
+  };
+
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh);
+    toast.success(!autoRefresh ? "Live updates enabled 🔄" : "Live updates disabled ⏸️");
+  };
+
   const handleCancelOrder = async (orderId: string) => {
     if (!confirm("Are you sure you want to cancel this order?")) return;
 
@@ -100,7 +232,8 @@ export default function StudentDashboard() {
 
       if (response.ok) {
         toast.success("Order cancelled successfully!");
-        fetchOrders();
+        // Refresh orders to get updated status
+        fetchOrders(false);
       } else {
         const errorData = await response.json();
         toast.error(errorData.message || "Failed to cancel order");
@@ -155,6 +288,17 @@ export default function StudentDashboard() {
     });
   };
 
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
+
   const filteredOrders = orders.filter(order => {
     if (activeTab === "all") return true;
     return order.status === activeTab;
@@ -167,6 +311,12 @@ export default function StudentDashboard() {
     completed: orders.filter(order => order.status === "completed").length,
     cancelled: orders.filter(order => order.status === "cancelled").length,
   };
+
+  // Get recent activity (orders updated in last 10 minutes)
+  const recentActivity = orders.filter(order => {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    return new Date(order.updatedAt) > tenMinutesAgo;
+  });
 
   if (isLoading) {
     return (
@@ -182,6 +332,16 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <Toaster position="top-right" />
+
+      {/* Connection Status Banner */}
+      {connectionStatus === "offline" && (
+        <div className="bg-red-500 text-white py-2 px-4 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <WifiOff size={16} />
+            <span className="text-sm font-medium">You're offline - Live updates paused</span>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-2xl relative overflow-hidden">
@@ -205,17 +365,39 @@ export default function StudentDashboard() {
                 <p className="text-indigo-200 text-sm sm:text-base">
                   Welcome back, <span className="font-semibold text-white">{user?.name || "Student"}! 👋</span>
                 </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></div>
+                  <span className="text-xs text-indigo-200">
+                    {autoRefresh ? 'Live updates active' : 'Live updates paused'}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
+              {/* Auto Refresh Toggle */}
               <button
-                onClick={fetchOrders}
+                onClick={toggleAutoRefresh}
+                className={`flex-1 sm:flex-none px-4 py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20 ${
+                  autoRefresh 
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600' 
+                    : 'bg-gradient-to-r from-gray-500 to-gray-600 text-white hover:from-gray-600 hover:to-gray-700'
+                }`}
+              >
+                {autoRefresh ? <Wifi size={18} /> : <WifiOff size={18} />}
+                <span className="hidden sm:inline">Auto</span>
+              </button>
+
+              {/* Manual Refresh */}
+              <button
+                onClick={handleManualRefresh}
                 disabled={isRefreshing}
                 className="flex-1 sm:flex-none bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-3 sm:py-3 rounded-xl hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20"
               >
                 <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
                 <span>Refresh</span>
               </button>
+
+              {/* Logout */}
               <button
                 onClick={handleLogout}
                 className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 sm:px-6 sm:py-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
@@ -292,6 +474,25 @@ export default function StudentDashboard() {
           </div>
         </div>
 
+        {/* Recent Activity Indicator */}
+        {recentActivity.length > 0 && autoRefresh && (
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                <Bell size={16} className="text-white" />
+              </div>
+              <div>
+                <p className="text-blue-800 font-semibold text-sm">
+                  Live Updates Active
+                </p>
+                <p className="text-blue-600 text-xs">
+                  {recentActivity.length} orders updated recently • Auto-refresh every 5 seconds
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Orders Section */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -303,7 +504,10 @@ export default function StudentDashboard() {
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
                   My Orders
                 </h2>
-                <p className="text-gray-600 text-sm">Track and manage your food orders</p>
+                <p className="text-gray-600 text-sm">
+                  {autoRefresh ? 'Live tracking enabled • ' : ''}
+                  Last updated: {getTimeAgo(new Date(lastFetchTimeRef.current).toISOString())}
+                </p>
               </div>
             </div>
             <button
@@ -389,8 +593,13 @@ export default function StudentDashboard() {
                   return (
                     <div
                       key={order._id}
-                      className="border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white group"
+                      className="border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white group relative"
                     >
+                      {/* Live indicator for active orders */}
+                      {(order.status === 'pending' || order.status === 'preparing') && autoRefresh && (
+                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
+                      )}
+                      
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-start mb-4 gap-3">
                         <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
@@ -402,10 +611,16 @@ export default function StudentDashboard() {
                               {statusLabel}
                             </span>
                           </div>
-                          <p className="text-gray-600 text-xs sm:text-sm flex items-center gap-1">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                             <Clock size={12} />
-                            Placed on {formatDate(order.createdAt)}
-                          </p>
+                            <span>Placed: {formatDate(order.createdAt)}</span>
+                            {order.updatedAt !== order.createdAt && (
+                              <>
+                                <span>•</span>
+                                <span>Updated: {getTimeAgo(order.updatedAt)}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                         <div className="w-full sm:w-auto text-left sm:text-right">
                           <p className="text-xl sm:text-2xl font-bold text-green-600">
