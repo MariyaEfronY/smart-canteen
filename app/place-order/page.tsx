@@ -1,4 +1,5 @@
-// app/place-order/page.tsx
+
+// app/place-order/page.tsx - UPDATED VERSION
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,27 +26,31 @@ export default function PlaceOrder() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderId, setOrderId] = useState<string>("");
   const [hasPlacedOrder, setHasPlacedOrder] = useState(false);
+  const [orderAttempts, setOrderAttempts] = useState(0);
 
   useEffect(() => {
     placeOrderAfterLogin();
   }, []);
 
-  // ✅ FIX: Generate unique cart hash to detect duplicates
+  // ✅ ENHANCED: Generate unique cart hash
   const generateCartHash = (cartItems: CartItem[]): string => {
-    return cartItems
+    const sortedItems = cartItems
       .map(item => `${item.item._id}-${item.quantity}`)
       .sort()
       .join('|');
+    return btoa(sortedItems); // Base64 encoding for better uniqueness
   };
 
   const placeOrderAfterLogin = async () => {
-    // ✅ FIX: Prevent duplicate order placement with multiple checks
-    if (hasPlacedOrder) {
-      console.log("Order already placed, preventing duplicate");
+    // ✅ ENHANCED: Prevent duplicate order placement with multiple layers
+    if (hasPlacedOrder || orderAttempts >= 2) {
+      console.log("Order already placed or max attempts reached");
       return;
     }
 
     try {
+      setOrderAttempts(prev => prev + 1);
+
       // Get cart data from localStorage
       const redirectData = localStorage.getItem('loginRedirect');
       if (!redirectData) {
@@ -54,7 +59,7 @@ export default function PlaceOrder() {
         return;
       }
 
-      const { cart: savedCart } = JSON.parse(redirectData);
+      const { cart: savedCart, orderIdentifier } = JSON.parse(redirectData);
       
       // Validate cart data
       if (!savedCart || !Array.isArray(savedCart) || savedCart.length === 0) {
@@ -63,19 +68,30 @@ export default function PlaceOrder() {
         return;
       }
 
-      setCart(savedCart);
+      // ✅ ENHANCED: Remove any potential duplicates from saved cart
+      const uniqueCart = savedCart.reduce((acc: CartItem[], current) => {
+        const existing = acc.find(item => item.item._id === current.item._id);
+        if (existing) {
+          // If duplicate found, sum quantities
+          existing.quantity += current.quantity;
+        } else {
+          acc.push({ ...current });
+        }
+        return acc;
+      }, []);
 
-      // ✅ FIX: Enhanced duplicate detection with cart hash
-      const currentCartHash = generateCartHash(savedCart);
+      setCart(uniqueCart);
+
+      // ✅ ENHANCED: Enhanced duplicate detection
+      const currentCartHash = generateCartHash(uniqueCart);
       const recentOrder = localStorage.getItem('recentOrder');
       
       if (recentOrder) {
         const recentOrderData = JSON.parse(recentOrder);
-        // Check if the same cart was recently placed (within 2 minutes)
         const timeDiff = Date.now() - recentOrderData.timestamp;
         const isSameCart = recentOrderData.cartHash === currentCartHash;
         
-        if (timeDiff < 120000 && isSameCart) { // 2 minutes window
+        if (timeDiff < 120000 && isSameCart) {
           console.log("Duplicate order detected, redirecting to success");
           toast.success("Order was already placed successfully!");
           setOrderSuccess(true);
@@ -86,23 +102,26 @@ export default function PlaceOrder() {
         }
       }
 
-      // ✅ FIX: Immediate flag to prevent duplicate API calls
+      // ✅ ENHANCED: Immediate flag to prevent duplicate API calls
       setHasPlacedOrder(true);
 
-      // ✅ FIX: Prepare order data with server-side validation
+      // ✅ ENHANCED: Prepare order data with enhanced validation
       const orderData = {
-        items: savedCart.map((cartItem: CartItem) => ({
+        items: uniqueCart.map((cartItem: CartItem) => ({
           item: cartItem.item._id,
           quantity: cartItem.quantity,
         })),
-        // Add client-side identifier for duplicate detection
         clientTimestamp: Date.now(),
-        cartHash: currentCartHash
+        cartHash: currentCartHash,
+        orderIdentifier: orderIdentifier || `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       };
 
       console.log("Placing order with data:", orderData);
 
-      // Place the order
+      // Place the order with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -110,79 +129,89 @@ export default function PlaceOrder() {
         },
         credentials: "include",
         body: JSON.stringify(orderData),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
       if (!response.ok) {
-        // ✅ FIX: Reset placement flag on failure to allow retry
-        setHasPlacedOrder(false);
         throw new Error(data.message || "Failed to place order");
       }
 
-      // ✅ FIX: Verify the order was created with correct items
+      // ✅ ENHANCED: Verify order integrity
       if (data.order && data.order.items) {
         const placedItemsCount = data.order.items.reduce((total: number, item: any) => total + item.quantity, 0);
-        const originalItemsCount = savedCart.reduce((total, item) => total + item.quantity, 0);
+        const originalItemsCount = uniqueCart.reduce((total, item) => total + item.quantity, 0);
         
         if (placedItemsCount !== originalItemsCount) {
           console.warn(`Item count mismatch: Original ${originalItemsCount}, Placed ${placedItemsCount}`);
+          // This is just a warning, don't fail the order
         }
       }
 
       setOrderSuccess(true);
       setOrderId(data.order?._id || "");
       
-      // ✅ FIX: Store recent order info with enhanced data
+      // ✅ ENHANCED: Store recent order info
       localStorage.setItem('recentOrder', JSON.stringify({
         orderId: data.order?._id,
         timestamp: Date.now(),
         cartHash: currentCartHash,
-        itemCount: savedCart.reduce((total, item) => total + item.quantity, 0)
+        itemCount: uniqueCart.reduce((total, item) => total + item.quantity, 0),
+        totalAmount: getTotalPrice(uniqueCart)
       }));
 
-      // ✅ FIX: Clear cart data only after successful order
+      // ✅ ENHANCED: Clear cart data
       localStorage.removeItem('loginRedirect');
       localStorage.removeItem('canteenCart');
 
-      toast.success(`Order placed successfully! ${savedCart.length} item(s)`);
+      toast.success(`Order placed successfully! ${uniqueCart.length} unique item(s)`);
 
     } catch (error: any) {
       console.error("Order placement error:", error);
+      
+      if (error.name === 'AbortError') {
+        toast.error("Order request timed out. Please try again.");
+      }
+      
       setOrderFailed(true);
-      // ✅ FIX: Reset placement flag on error
-      setHasPlacedOrder(false);
+      setHasPlacedOrder(false); // Allow retry on failure
       toast.error(error.message || "Failed to place order");
     } finally {
       setIsPlacingOrder(false);
     }
   };
 
+  const getTotalPrice = (cartItems: CartItem[] = cart) => {
+    return cartItems.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
+  };
+
+  const getTotalItems = (cartItems: CartItem[] = cart) => {
+    return cartItems.reduce((total, cartItem) => total + cartItem.quantity, 0);
+  };
+
   const handleDashboardRedirect = () => {
     router.push('/student');
   };
 
-  const getTotalPrice = () => {
-    return cart.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
-  };
-
-  const getTotalItems = () => {
-    return cart.reduce((total, cartItem) => total + cartItem.quantity, 0);
-  };
-
-  // ✅ FIX: Add retry function with proper cleanup
   const handleRetry = () => {
-    // Clear any existing order data
+    if (orderAttempts >= 2) {
+      toast.error("Maximum retry attempts reached. Please contact support.");
+      return;
+    }
+
     localStorage.removeItem('recentOrder');
     setHasPlacedOrder(false);
     setOrderFailed(false);
     setIsPlacingOrder(true);
     
-    // Small delay to ensure state reset
     setTimeout(() => {
       placeOrderAfterLogin();
-    }, 500);
+    }, 1000);
   };
+
 
   if (isPlacingOrder) {
     return (

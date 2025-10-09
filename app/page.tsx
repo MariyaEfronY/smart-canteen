@@ -60,27 +60,64 @@ export default function Home() {
     fetchMenuItems();
   }, []);
 
-  // Load cart from localStorage on component mount
+  // ✅ FIXED: Improved cart loading with duplicate prevention
   useEffect(() => {
     const savedCart = localStorage.getItem('canteenCart');
     if (savedCart) {
       try {
         const parsedCart = JSON.parse(savedCart);
-        setCart(parsedCart);
+        // Remove duplicates by item ID
+        const uniqueCart = removeDuplicateCartItems(parsedCart);
+        setCart(uniqueCart);
       } catch (error) {
         console.error('Error loading cart from localStorage:', error);
+        // Reset corrupted cart
+        localStorage.removeItem('canteenCart');
       }
     }
   }, []);
 
-  // Save cart to localStorage whenever cart changes
+  // ✅ FIXED: Improved cart saving with validation
   useEffect(() => {
     if (cart.length > 0) {
-      localStorage.setItem('canteenCart', JSON.stringify(cart));
+      const validatedCart = validateCartItems(cart);
+      localStorage.setItem('canteenCart', JSON.stringify(validatedCart));
     } else {
       localStorage.removeItem('canteenCart');
     }
   }, [cart]);
+
+  // ✅ NEW: Remove duplicate cart items by item ID
+  const removeDuplicateCartItems = (cartItems: CartItem[]): CartItem[] => {
+    const itemMap = new Map();
+    
+    cartItems.forEach(cartItem => {
+      const itemId = cartItem.item._id;
+      if (itemMap.has(itemId)) {
+        // If item already exists, sum the quantities
+        const existing = itemMap.get(itemId);
+        itemMap.set(itemId, {
+          ...existing,
+          quantity: existing.quantity + cartItem.quantity
+        });
+      } else {
+        // New item, add to map
+        itemMap.set(itemId, { ...cartItem });
+      }
+    });
+    
+    return Array.from(itemMap.values());
+  };
+
+  // ✅ NEW: Validate cart items and remove invalid ones
+  const validateCartItems = (cartItems: CartItem[]): CartItem[] => {
+    return cartItems.filter(cartItem => 
+      cartItem.item && 
+      cartItem.item._id && 
+      cartItem.quantity > 0 &&
+      cartItem.quantity <= 10 // Reasonable limit
+    );
+  };
 
   const fetchMenuItems = async () => {
     try {
@@ -99,7 +136,7 @@ export default function Home() {
     }
   };
 
-  // ✅ FIXED: Improved add to cart function
+  // ✅ FIXED: Enhanced add to cart with duplicate prevention
   const addToCart = (item: MenuItem) => {
     if (item.status !== "available") {
       toast.error("This item is currently unavailable");
@@ -111,35 +148,42 @@ export default function Home() {
       const existingItemIndex = prevCart.findIndex(cartItem => cartItem.item._id === item._id);
       
       if (existingItemIndex > -1) {
-        // Item exists, update quantity
+        // Item exists, update quantity (prevent duplicates)
         const updatedCart = [...prevCart];
         updatedCart[existingItemIndex] = {
           ...updatedCart[existingItemIndex],
-          quantity: updatedCart[existingItemIndex].quantity + 1
+          quantity: Math.min(updatedCart[existingItemIndex].quantity + 1, 10) // Limit to 10
         };
+        toast.success(`Updated ${item.name} quantity to ${updatedCart[existingItemIndex].quantity}`);
         return updatedCart;
       } else {
         // Item doesn't exist, add new item
-        return [...prevCart, { item, quantity: 1 }];
+        const newCart = [...prevCart, { item, quantity: 1 }];
+        toast.success(`Added ${item.name} to cart!`);
+        return newCart;
       }
     });
-    
-    toast.success(`Added ${item.name} to cart!`);
   };
 
   // ✅ FIXED: Improved remove from cart function
   const removeFromCart = (itemId: string) => {
     setCart(prevCart => {
       const updatedCart = prevCart.filter(item => item.item._id !== itemId);
+      toast.success("Item removed from cart");
       return updatedCart;
     });
-    toast.success("Item removed from cart");
   };
 
-  // ✅ FIXED: Improved quantity update function
+  // ✅ FIXED: Improved quantity update function with validation
   const updateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) {
       removeFromCart(itemId);
+      return;
+    }
+    
+    // Limit maximum quantity
+    if (newQuantity > 10) {
+      toast.error("Maximum quantity per item is 10");
       return;
     }
     
@@ -169,27 +213,45 @@ export default function Home() {
 
   const categories = ["all", ...new Set(menuItems.map(item => item.category))];
 
-  // ✅ FIXED: Improved order placement function
+  // ✅ FIXED: Enhanced order placement with duplicate prevention
   const handlePlaceOrder = async () => {
     if (cart.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
 
-    // Validate cart items
-    const validCart = cart.filter(cartItem => cartItem.item.status === "available");
+    // Validate cart items before proceeding
+    const validCart = cart.filter(cartItem => 
+      cartItem.item.status === "available" && 
+      cartItem.quantity > 0
+    );
+    
     if (validCart.length === 0) {
       toast.error("All items in your cart are currently unavailable");
       return;
     }
 
+    // Check for duplicate items in cart
+    const itemIds = validCart.map(item => item.item._id);
+    const hasDuplicates = new Set(itemIds).size !== itemIds.length;
+    
+    if (hasDuplicates) {
+      toast.error("Duplicate items detected in cart. Please review your cart.");
+      setShowCart(true);
+      return;
+    }
+
+    // ✅ FIXED: Generate unique order identifier
+    const orderIdentifier = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     // Save cart to localStorage before redirecting to login
     const redirectData = {
       redirectTo: '/place-order',
       message: 'Please complete your order after login',
-      cart: validCart, // Only include available items
+      cart: validCart,
       fromOrder: true,
-      timestamp: Date.now() // Add timestamp to prevent duplicates
+      timestamp: Date.now(),
+      orderIdentifier: orderIdentifier // Unique identifier for this order attempt
     };
     
     localStorage.setItem('loginRedirect', JSON.stringify(redirectData));
@@ -204,6 +266,7 @@ export default function Home() {
     localStorage.removeItem('canteenCart');
     toast.success("Cart cleared successfully");
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
