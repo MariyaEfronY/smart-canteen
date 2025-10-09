@@ -16,8 +16,15 @@ interface MenuItem {
   status: "available" | "unavailable";
 }
 
+// ✅ FIXED: Simplified CartItem interface for cart operations
 interface CartItem {
-  item: MenuItem;
+  item: {
+    _id: string;
+    name: string;
+    price: number;
+    imageUrl: string;
+    status: "available" | "unavailable";
+  };
   quantity: number;
 }
 
@@ -87,7 +94,7 @@ export default function Home() {
     }
   }, [cart]);
 
-  // ✅ NEW: Remove duplicate cart items by item ID
+  // ✅ FIXED: Remove duplicate cart items by item ID
   const removeDuplicateCartItems = (cartItems: CartItem[]): CartItem[] => {
     const itemMap = new Map();
     
@@ -109,7 +116,7 @@ export default function Home() {
     return Array.from(itemMap.values());
   };
 
-  // ✅ NEW: Validate cart items and remove invalid ones
+  // ✅ FIXED: Validate cart items and remove invalid ones
   const validateCartItems = (cartItems: CartItem[]): CartItem[] => {
     return cartItems.filter(cartItem => 
       cartItem.item && 
@@ -136,7 +143,7 @@ export default function Home() {
     }
   };
 
-  // ✅ FIXED: Enhanced add to cart with duplicate prevention
+  // ✅ FIXED: Enhanced add to cart with proper duplicate prevention
   const addToCart = (item: MenuItem) => {
     if (item.status !== "available") {
       toast.error("This item is currently unavailable");
@@ -157,8 +164,17 @@ export default function Home() {
         toast.success(`Updated ${item.name} quantity to ${updatedCart[existingItemIndex].quantity}`);
         return updatedCart;
       } else {
-        // Item doesn't exist, add new item
-        const newCart = [...prevCart, { item, quantity: 1 }];
+        // Item doesn't exist, add new item with only necessary properties
+        const newCart = [...prevCart, { 
+          item: {
+            _id: item._id,
+            name: item.name,
+            price: item.price,
+            imageUrl: item.imageUrl,
+            status: item.status
+          }, 
+          quantity: 1 
+        }];
         toast.success(`Added ${item.name} to cart!`);
         return newCart;
       }
@@ -214,58 +230,72 @@ export default function Home() {
   const categories = ["all", ...new Set(menuItems.map(item => item.category))];
 
   // ✅ FIXED: Enhanced order placement with duplicate prevention
-  // In your main page.tsx - Update the handlePlaceOrder function
-const handlePlaceOrder = async () => {
-  if (cart.length === 0) {
-    toast.error("Your cart is empty");
-    return;
-  }
-
-  // Validate cart items
-  const validCart = cart.filter(cartItem => 
-    cartItem.item.status === "available" && 
-    cartItem.quantity > 0
-  );
-  
-  if (validCart.length === 0) {
-    toast.error("All items in your cart are currently unavailable");
-    return;
-  }
-
-  // Remove duplicates
-  const uniqueCart = validCart.reduce((acc: CartItem[], current) => {
-    const existing = acc.find(item => item.item._id === current.item._id);
-    if (existing) {
-      existing.quantity += current.quantity;
-    } else {
-      acc.push({ ...current });
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) {
+      toast.error("Your cart is empty");
+      return;
     }
-    return acc;
-  }, []);
 
-  // Save cart to localStorage before redirecting
-  const redirectData = {
-    redirectTo: '/place-order',
-    message: 'Please complete your order after login',
-    cart: uniqueCart,
-    fromOrder: true,
-    timestamp: Date.now(),
-    orderIdentifier: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    // Validate cart items
+    const validCart = cart.filter(cartItem => 
+      cartItem.item.status === "available" && 
+      cartItem.quantity > 0
+    );
+    
+    if (validCart.length === 0) {
+      toast.error("All items in your cart are currently unavailable");
+      return;
+    }
+
+    // ✅ CRITICAL FIX: Final duplicate check before placing order
+    const uniqueCart = validCart.reduce((acc: CartItem[], current) => {
+      const existing = acc.find(item => item.item._id === current.item._id);
+      if (existing) {
+        // Merge quantities for same item ID
+        existing.quantity += current.quantity;
+      } else {
+        // Add unique item with only necessary properties for order
+        acc.push({ 
+          item: {
+            _id: current.item._id,
+            name: current.item.name,
+            price: current.item.price,
+            imageUrl: current.item.imageUrl,
+            status: current.item.status
+          },
+          quantity: current.quantity 
+        });
+      }
+      return acc;
+    }, []);
+
+    console.log("Final cart before order:", uniqueCart);
+
+    // ✅ FIXED: Clear any previous session storage to prevent duplicate orders
+    sessionStorage.removeItem('orderPlaced');
+
+    // Save cart to localStorage before redirecting
+    const redirectData = {
+      redirectTo: '/place-order',
+      message: 'Please complete your order after login',
+      cart: uniqueCart,
+      fromOrder: true,
+      timestamp: Date.now(),
+      orderIdentifier: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+    
+    localStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+    
+    // Close cart and redirect to login
+    setShowCart(false);
+    router.push('/login');
   };
-  
-  localStorage.setItem('loginRedirect', JSON.stringify(redirectData));
-  
-  // Close cart and redirect to login
-  setShowCart(false);
-  router.push('/login');
-};
 
   const clearCart = () => {
     setCart([]);
     localStorage.removeItem('canteenCart');
     toast.success("Cart cleared successfully");
   };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
