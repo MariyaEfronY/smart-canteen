@@ -1,4 +1,4 @@
-// app/place-order/page.tsx - SIMPLIFIED & CORRECTED VERSION
+// app/place-order/page.tsx 
 "use client";
 
 import { useEffect, useState } from "react";
