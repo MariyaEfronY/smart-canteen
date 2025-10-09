@@ -1,9 +1,9 @@
 // app/place-order/page.tsx 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, ShoppingCart, Loader, ArrowLeft, AlertCircle } from "lucide-react";
+import { CheckCircle, ShoppingCart, Loader, ArrowLeft, AlertCircle, Clock, Package, Utensils } from "lucide-react";
 import Link from "next/link";
 
 interface CartItem {
@@ -24,6 +24,7 @@ interface OrderResponse {
     items: any[];
     totalAmount: number;
     status: string;
+    createdAt?: string;
   };
 }
 
@@ -35,8 +36,20 @@ export default function PlaceOrder() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderData, setOrderData] = useState<OrderResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  // ✅ CRITICAL FIX: Use refs to track order placement state
+  const orderPlacedRef = useRef(false);
+  const orderInProgressRef = useRef(false);
+  const orderIdentifierRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // ✅ CRITICAL FIX: Prevent duplicate order placement
+    if (orderPlacedRef.current || orderInProgressRef.current) {
+      console.log("🛑 Blocked duplicate useEffect execution");
+      return;
+    }
+
     const savedCart = localStorage.getItem('loginRedirect');
     if (!savedCart) {
       console.log("No cart data found, redirecting to home");
@@ -54,6 +67,12 @@ export default function PlaceOrder() {
       
       console.log("Cart data found:", savedCartData.length, "items");
       setCart(savedCartData);
+      
+      // ✅ Generate unique order identifier once
+      if (!orderIdentifierRef.current) {
+        orderIdentifierRef.current = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      }
+      
       placeOrder(savedCartData);
     } catch (error) {
       console.error('Error parsing cart data:', error);
@@ -61,11 +80,39 @@ export default function PlaceOrder() {
     }
   }, [router]);
 
+  // Progress animation
+  useEffect(() => {
+    if (isPlacingOrder && !orderPlacedRef.current) {
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) return 90;
+          return prev + 10;
+        });
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [isPlacingOrder]);
+
   const placeOrder = async (cartItems: CartItem[]) => {
+    // ✅ CRITICAL FIX: Check if order is already placed or in progress
+    if (orderPlacedRef.current) {
+      console.log("🛑 Order already placed, skipping");
+      return;
+    }
+
+    if (orderInProgressRef.current) {
+      console.log("🛑 Order already in progress, skipping");
+      return;
+    }
+
+    // ✅ Set flag immediately to block duplicate calls
+    orderInProgressRef.current = true;
+
     if (!cartItems || cartItems.length === 0) {
       setErrorMessage("Cart is empty");
       setOrderFailed(true);
       setIsPlacingOrder(false);
+      orderInProgressRef.current = false;
       return;
     }
 
@@ -73,8 +120,9 @@ export default function PlaceOrder() {
       setIsPlacingOrder(true);
       setOrderFailed(false);
       setErrorMessage("");
+      setProgress(10);
 
-      console.log("Placing order with items:", cartItems);
+      console.log("🛒 Placing order with items:", cartItems);
 
       // Remove duplicates from cart
       const uniqueCart = cartItems.reduce((acc: CartItem[], current) => {
@@ -87,7 +135,8 @@ export default function PlaceOrder() {
         return acc;
       }, []);
 
-      console.log("After duplicate removal:", uniqueCart);
+      console.log("✅ After duplicate removal:", uniqueCart);
+      setProgress(30);
 
       const orderPayload = {
         items: uniqueCart.map(cartItem => ({
@@ -95,10 +144,11 @@ export default function PlaceOrder() {
           quantity: cartItem.quantity,
         })),
         clientTimestamp: Date.now(),
-        orderIdentifier: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        orderIdentifier: orderIdentifierRef.current // ✅ Use the same identifier
       };
 
-      console.log("Sending order payload:", orderPayload);
+      console.log("📤 Sending order payload:", orderPayload);
+      setProgress(60);
 
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -110,26 +160,35 @@ export default function PlaceOrder() {
       });
 
       const data = await response.json();
-      console.log("Order response:", data);
+      console.log("📥 Order response:", data);
+      setProgress(90);
 
       if (!response.ok) {
         throw new Error(data.message || `Failed to place order: ${response.status}`);
       }
 
+      // ✅ CRITICAL FIX: Mark order as placed to prevent duplicates
+      orderPlacedRef.current = true;
+      orderInProgressRef.current = false;
+
       // Success - store the complete order data
       setOrderData(data);
       setOrderSuccess(true);
+      setProgress(100);
       
       // Clean up localStorage
       localStorage.removeItem('loginRedirect');
       localStorage.removeItem('canteenCart');
       
-      console.log("Order placed successfully, cart cleared");
+      console.log("🎉 Order placed successfully, cart cleared");
       
     } catch (error: any) {
-      console.error("Order placement error:", error);
+      console.error("❌ Order placement error:", error);
       setErrorMessage(error.message || "Failed to place order. Please try again.");
       setOrderFailed(true);
+      setProgress(0);
+      // ✅ Reset progress flag on error
+      orderInProgressRef.current = false;
     } finally {
       setIsPlacingOrder(false);
     }
@@ -144,8 +203,13 @@ export default function PlaceOrder() {
   };
 
   const handleRetry = () => {
+    // ✅ Reset flags for retry
+    orderPlacedRef.current = false;
+    orderInProgressRef.current = false;
+    
     setOrderFailed(false);
     setIsPlacingOrder(true);
+    setProgress(0);
     // Retry with current cart
     setTimeout(() => placeOrder(cart), 1000);
   };
@@ -155,148 +219,330 @@ export default function PlaceOrder() {
   };
 
   const handleViewOrders = () => {
-    // Redirect to student dashboard or home since we don't have my-orders page
     router.push('/student');
   };
 
-  // Loading state
+  const handleContactSupport = () => {
+    router.push('/contact');
+  };
+
+  // Enhanced Loading state with progress
   if (isPlacingOrder) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md w-full">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-500 mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Placing Your Order</h2>
-          <p className="text-gray-600 mb-6">We're preparing your delicious meal...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full animate-fade-in">
+          {/* Animated Progress Bar */}
+          <div className="mb-8">
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-600 font-medium">
+              {progress < 30 && "🔄 Preparing your order..."}
+              {progress >= 30 && progress < 60 && "📦 Processing items..."}
+              {progress >= 60 && progress < 90 && "🚀 Finalizing order..."}
+              {progress >= 90 && "🎉 Almost done..."}
+            </p>
+          </div>
+
+          {/* Animated Icon */}
+          <div className="relative mb-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto shadow-2xl animate-pulse">
+              <Package className="text-white" size={32} />
+            </div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-4 border-white animate-bounce"></div>
+          </div>
           
-          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Items:</span>
-                <span className="font-semibold">{getTotalItems()} items</span>
+          <h2 className="text-3xl font-black text-gray-900 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Processing Your Order
+          </h2>
+          <p className="text-gray-600 mb-8 text-lg font-medium">
+            Hang tight! We're preparing your delicious meal with care 🍕
+          </p>
+          
+          {/* Order Summary Card */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-xl mb-6 transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Utensils className="text-blue-500" size={20} />
+              <span className="font-bold text-gray-800 text-lg">Order Preview</span>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 font-medium">Items Count:</span>
+                <span className="font-bold text-gray-900 bg-blue-100 px-3 py-1 rounded-full text-sm">
+                  {getTotalItems()} items
+                </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total Amount:</span>
-                <span className="font-semibold text-green-600">₹{getTotalPrice().toFixed(2)}</span>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 font-medium">Total Amount:</span>
+                <span className="font-bold text-green-600 text-lg">
+                  ₹{getTotalPrice().toFixed(2)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Estimated Time:</span>
+                <span className="font-semibold text-orange-500">15-20 mins</span>
               </div>
             </div>
+          </div>
+
+          {/* Fun Facts */}
+          <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl p-4">
+            <p className="text-orange-800 text-sm font-medium">
+              💡 <strong>Did you know?</strong> Our chefs are preparing your meal fresh right now!
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Success state
+  // Enhanced Success state
   if (orderSuccess && orderData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md w-full">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="text-green-600" size={40} />
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full animate-scale-in">
+          {/* Success Animation */}
+          <div className="relative mb-8">
+            <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-2xl animate-bounce">
+              <CheckCircle className="text-white" size={40} />
+            </div>
+            <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400 rounded-full border-4 border-white animate-ping"></div>
           </div>
           
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Order Confirmed! 🎉</h2>
-          <p className="text-gray-600 mb-6">
-            Your order has been placed successfully and is being prepared.
+          <h2 className="text-4xl font-black text-gray-900 mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            Order Confirmed! 🎉
+          </h2>
+          <p className="text-gray-600 mb-8 text-lg font-medium">
+            Your delicious meal is being prepared with love and care!
           </p>
           
-          {/* Order Details */}
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6">
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <CheckCircle className="text-green-600" size={20} />
-              <span className="font-semibold text-green-800">Order Details</span>
+          {/* Order Details Card */}
+          <div className="bg-gradient-to-br from-green-500 to-emerald-500 text-white rounded-2xl p-6 mb-6 shadow-2xl transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <CheckCircle className="text-white" size={24} />
+              <span className="font-bold text-lg">Order Details</span>
             </div>
-            <p className="text-green-800 font-medium mb-2">
-              Order #: <span className="font-bold">
-                {orderData.order?.orderNumber || orderData.order?._id?.slice(-8).toUpperCase() || 'N/A'}
-              </span>
-            </p>
-            <p className="text-green-700 text-sm">
-              {getTotalItems()} items • ₹{getTotalPrice().toFixed(2)}
-            </p>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Order Number:</span>
+                <span className="font-black text-yellow-300 text-lg">
+                  #{orderData.order?._id?.slice(-8).toUpperCase() || 'N/A'}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Items:</span>
+                <span className="font-bold">{getTotalItems()} items</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Total Amount:</span>
+                <span className="font-bold text-2xl">₹{getTotalPrice().toFixed(2)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm">
+                <span>Status:</span>
+                <span className="font-bold bg-white/20 px-3 py-1 rounded-full">
+                  🟢 {orderData.order?.status || 'Pending'}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Order Summary */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm mb-6">
-            <h3 className="font-semibold text-gray-900 mb-4 text-lg">Order Summary</h3>
-            <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl mb-8 transform hover:shadow-2xl transition-all duration-300">
+            <h3 className="font-bold text-gray-900 mb-4 text-xl flex items-center justify-center gap-2">
+              <ShoppingCart className="text-blue-500" size={20} />
+              Order Summary
+            </h3>
+            
+            <div className="space-y-4 max-h-80 overflow-y-auto mb-6 custom-scrollbar">
               {cart.map((cartItem, index) => (
-                <div key={`${cartItem.item._id}-${index}`} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
-                  <div className="text-left flex-1">
-                    <span className="text-gray-700 font-medium block">{cartItem.item.name}</span>
-                    <span className="text-gray-500 text-sm">× {cartItem.quantity}</span>
+                <div 
+                  key={`${cartItem.item._id}-${index}`} 
+                  className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl hover:bg-blue-50 transition-all duration-300 group"
+                >
+                  <img
+                    src={cartItem.item.imageUrl || "/placeholder-food.jpg"}
+                    alt={cartItem.item.name}
+                    className="w-16 h-16 object-cover rounded-lg group-hover:scale-110 transition-transform duration-300"
+                  />
+                  
+                  <div className="flex-1 text-left">
+                    <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                      {cartItem.item.name}
+                    </h4>
+                    <p className="text-gray-600 text-sm">
+                      Quantity: <span className="font-bold">{cartItem.quantity}</span>
+                    </p>
                   </div>
-                  <span className="font-semibold text-gray-900">
-                    ₹{(cartItem.item.price * cartItem.quantity).toFixed(2)}
-                  </span>
+                  
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900 text-lg">
+                      ₹{(cartItem.item.price * cartItem.quantity).toFixed(2)}
+                    </p>
+                    <p className="text-gray-500 text-sm">₹{cartItem.item.price} each</p>
+                  </div>
                 </div>
               ))}
             </div>
+            
             <div className="border-t border-gray-200 pt-4">
-              <div className="flex justify-between items-center font-bold text-lg">
-                <span>Total Amount:</span>
-                <span className="text-green-600">₹{getTotalPrice().toFixed(2)}</span>
+              <div className="flex justify-between items-center font-black text-xl">
+                <span className="text-gray-700">Total Amount:</span>
+                <span className="text-green-600 bg-green-50 px-4 py-2 rounded-xl">
+                  ₹{getTotalPrice().toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-3">
+          {/* Next Steps */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-6">
+            <h4 className="font-bold text-blue-900 mb-3 flex items-center justify-center gap-2">
+              <Clock className="text-blue-500" size={20} />
+              What's Next?
+            </h4>
+            <div className="space-y-2 text-sm text-blue-800">
+              <p>✅ Your order has been received</p>
+              <p>👨‍🍳 Our chefs are preparing your meal</p>
+              <p>⏱️ Estimated ready time: 15-20 minutes</p>
+              <p>📱 You'll get updates on your dashboard</p>
+            </div>
+          </div>
+
+          {/* Enhanced Action Buttons */}
+          <div className="space-y-4">
             <button
               onClick={handleViewOrders}
-              className="w-full bg-green-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:bg-green-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-8 rounded-xl font-black text-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:scale-105 flex items-center justify-center gap-3"
             >
-              View Dashboard
+              <CheckCircle size={20} />
+              Track My Orders
             </button>
+            
             <button
               onClick={handleBackToMenu}
-              className="w-full bg-white text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200 border border-gray-300"
+              className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-8 rounded-xl font-bold hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
             >
+              <Utensils size={18} />
               Order More Food
             </button>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 border border-gray-300 flex items-center justify-center gap-2"
+              >
+                📄 Print Receipt
+              </button>
+              
+              <button
+                onClick={() => navigator.share?.({ 
+                  title: 'My Order', 
+                  text: `I just ordered ${getTotalItems()} items from Campus Canteen!` 
+                })}
+                className="flex-1 bg-purple-100 text-purple-700 py-3 px-4 rounded-xl font-semibold hover:bg-purple-200 transition-all duration-200 border border-purple-300 flex items-center justify-center gap-2"
+              >
+                📱 Share
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Error state
+  // Enhanced Error state
   if (orderFailed) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md w-full">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertCircle className="text-red-600" size={40} />
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full animate-shake">
+          {/* Error Animation */}
+          <div className="relative mb-8">
+            <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-orange-500 rounded-full flex items-center justify-center mx-auto shadow-2xl">
+              <AlertCircle className="text-white" size={40} />
+            </div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full border-4 border-white animate-pulse"></div>
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Order Failed</h2>
-          <p className="text-gray-600 mb-2">{errorMessage}</p>
+          <h2 className="text-3xl font-black text-gray-900 mb-4 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+            Order Issue 🚨
+          </h2>
           
-          {errorMessage?.toLowerCase().includes('duplicate') && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-              <p className="text-yellow-800 text-sm">
-                💡 <strong>Tip:</strong> It seems this order was already placed. Check your dashboard.
-              </p>
-            </div>
-          )}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200 shadow-xl mb-6">
+            <p className="text-gray-700 mb-4 text-lg font-semibold">{errorMessage}</p>
+            
+            {errorMessage?.toLowerCase().includes('duplicate') && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-yellow-600 text-sm">💡</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-yellow-800 font-bold text-sm">Duplicate Order Detected</p>
+                    <p className="text-yellow-700 text-xs mt-1">
+                      It seems this order was already placed. Check your dashboard for order status.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
+            {errorMessage?.toLowerCase().includes('unavailable') && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-blue-600 text-sm">🍕</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-blue-800 font-bold text-sm">Item Availability</p>
+                    <p className="text-blue-700 text-xs mt-1">
+                      Some items in your cart might be temporarily unavailable. Please review your order.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Enhanced Action Buttons */}
           <div className="space-y-3">
             <button
               onClick={handleRetry}
-              className="w-full bg-green-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-600 transition-colors duration-300"
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 px-6 rounded-xl font-bold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
             >
+              <Loader size={20} />
               Try Again
             </button>
+            
             <button
               onClick={handleBackToMenu}
-              className="w-full bg-blue-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-600 transition-colors duration-300"
+              className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
             >
+              <ArrowLeft size={18} />
               Back to Menu
             </button>
+            
             <button
               onClick={handleViewOrders}
-              className="w-full bg-gray-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-gray-600 transition-colors duration-300"
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
             >
-              Go to Dashboard
+              📊 View Dashboard
+            </button>
+            
+            <button
+              onClick={handleContactSupport}
+              className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 border border-gray-300 flex items-center justify-center gap-3"
+            >
+              📞 Contact Support
             </button>
           </div>
         </div>
@@ -306,11 +552,66 @@ export default function PlaceOrder() {
 
   // Default loading state
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-      <div className="text-center">
-        <Loader className="animate-spin text-green-500 mx-auto mb-4" size={32} />
-        <p className="text-gray-600">Loading order...</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center">
+      <div className="text-center animate-pulse">
+        <div className="w-16 h-16 bg-gradient-to-r from-gray-400 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Loader className="text-white animate-spin" size={28} />
+        </div>
+        <p className="text-gray-600 font-medium">Initializing order system...</p>
       </div>
     </div>
   );
+}
+
+// Add custom styles for scrollbar
+const styles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scale-in 0.5s ease-out;
+  }
+  
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+`;
+
+// Add styles to head
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = styles;
+  document.head.appendChild(styleSheet);
 }
