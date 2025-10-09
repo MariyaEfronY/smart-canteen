@@ -214,52 +214,51 @@ export default function Home() {
   const categories = ["all", ...new Set(menuItems.map(item => item.category))];
 
   // ✅ FIXED: Enhanced order placement with duplicate prevention
-  const handlePlaceOrder = async () => {
-    if (cart.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
+  // In your main page.tsx - Update the handlePlaceOrder function
+const handlePlaceOrder = async () => {
+  if (cart.length === 0) {
+    toast.error("Your cart is empty");
+    return;
+  }
 
-    // Validate cart items before proceeding
-    const validCart = cart.filter(cartItem => 
-      cartItem.item.status === "available" && 
-      cartItem.quantity > 0
-    );
-    
-    if (validCart.length === 0) {
-      toast.error("All items in your cart are currently unavailable");
-      return;
-    }
+  // Validate cart items
+  const validCart = cart.filter(cartItem => 
+    cartItem.item.status === "available" && 
+    cartItem.quantity > 0
+  );
+  
+  if (validCart.length === 0) {
+    toast.error("All items in your cart are currently unavailable");
+    return;
+  }
 
-    // Check for duplicate items in cart
-    const itemIds = validCart.map(item => item.item._id);
-    const hasDuplicates = new Set(itemIds).size !== itemIds.length;
-    
-    if (hasDuplicates) {
-      toast.error("Duplicate items detected in cart. Please review your cart.");
-      setShowCart(true);
-      return;
+  // Remove duplicates
+  const uniqueCart = validCart.reduce((acc: CartItem[], current) => {
+    const existing = acc.find(item => item.item._id === current.item._id);
+    if (existing) {
+      existing.quantity += current.quantity;
+    } else {
+      acc.push({ ...current });
     }
+    return acc;
+  }, []);
 
-    // ✅ FIXED: Generate unique order identifier
-    const orderIdentifier = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Save cart to localStorage before redirecting to login
-    const redirectData = {
-      redirectTo: '/place-order',
-      message: 'Please complete your order after login',
-      cart: validCart,
-      fromOrder: true,
-      timestamp: Date.now(),
-      orderIdentifier: orderIdentifier // Unique identifier for this order attempt
-    };
-    
-    localStorage.setItem('loginRedirect', JSON.stringify(redirectData));
-    
-    // Close cart and redirect to login
-    setShowCart(false);
-    router.push('/login');
+  // Save cart to localStorage before redirecting
+  const redirectData = {
+    redirectTo: '/place-order',
+    message: 'Please complete your order after login',
+    cart: uniqueCart,
+    fromOrder: true,
+    timestamp: Date.now(),
+    orderIdentifier: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   };
+  
+  localStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+  
+  // Close cart and redirect to login
+  setShowCart(false);
+  router.push('/login');
+};
 
   const clearCart = () => {
     setCart([]);

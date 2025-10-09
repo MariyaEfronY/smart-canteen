@@ -1,11 +1,9 @@
-
-// app/place-order/page.tsx - UPDATED VERSION
+// app/place-order/page.tsx - SIMPLIFIED & CORRECTED VERSION
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, ShoppingCart, Loader, ArrowLeft } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import { CheckCircle, ShoppingCart, Loader, ArrowLeft, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 interface CartItem {
@@ -18,61 +16,70 @@ interface CartItem {
   quantity: number;
 }
 
+interface OrderResponse {
+  message: string;
+  order: {
+    _id: string;
+    orderNumber?: string;
+    items: any[];
+    totalAmount: number;
+    status: string;
+  };
+}
+
 export default function PlaceOrder() {
   const router = useRouter();
   const [isPlacingOrder, setIsPlacingOrder] = useState(true);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderFailed, setOrderFailed] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orderId, setOrderId] = useState<string>("");
-  const [hasPlacedOrder, setHasPlacedOrder] = useState(false);
-  const [orderAttempts, setOrderAttempts] = useState(0);
+  const [orderData, setOrderData] = useState<OrderResponse | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    placeOrderAfterLogin();
-  }, []);
-
-  // ✅ ENHANCED: Generate unique cart hash
-  const generateCartHash = (cartItems: CartItem[]): string => {
-    const sortedItems = cartItems
-      .map(item => `${item.item._id}-${item.quantity}`)
-      .sort()
-      .join('|');
-    return btoa(sortedItems); // Base64 encoding for better uniqueness
-  };
-
-  const placeOrderAfterLogin = async () => {
-    // ✅ ENHANCED: Prevent duplicate order placement with multiple layers
-    if (hasPlacedOrder || orderAttempts >= 2) {
-      console.log("Order already placed or max attempts reached");
+    const savedCart = localStorage.getItem('loginRedirect');
+    if (!savedCart) {
+      console.log("No cart data found, redirecting to home");
+      router.push('/');
       return;
     }
 
     try {
-      setOrderAttempts(prev => prev + 1);
-
-      // Get cart data from localStorage
-      const redirectData = localStorage.getItem('loginRedirect');
-      if (!redirectData) {
-        toast.error("No order data found");
+      const { cart: savedCartData } = JSON.parse(savedCart);
+      if (!savedCartData || savedCartData.length === 0) {
+        console.log("Empty cart, redirecting to home");
         router.push('/');
         return;
       }
-
-      const { cart: savedCart, orderIdentifier } = JSON.parse(redirectData);
       
-      // Validate cart data
-      if (!savedCart || !Array.isArray(savedCart) || savedCart.length === 0) {
-        toast.error("Cart is empty");
-        router.push('/');
-        return;
-      }
+      console.log("Cart data found:", savedCartData.length, "items");
+      setCart(savedCartData);
+      placeOrder(savedCartData);
+    } catch (error) {
+      console.error('Error parsing cart data:', error);
+      router.push('/');
+    }
+  }, [router]);
 
-      // ✅ ENHANCED: Remove any potential duplicates from saved cart
-      const uniqueCart = savedCart.reduce((acc: CartItem[], current) => {
+  const placeOrder = async (cartItems: CartItem[]) => {
+    if (!cartItems || cartItems.length === 0) {
+      setErrorMessage("Cart is empty");
+      setOrderFailed(true);
+      setIsPlacingOrder(false);
+      return;
+    }
+
+    try {
+      setIsPlacingOrder(true);
+      setOrderFailed(false);
+      setErrorMessage("");
+
+      console.log("Placing order with items:", cartItems);
+
+      // Remove duplicates from cart
+      const uniqueCart = cartItems.reduce((acc: CartItem[], current) => {
         const existing = acc.find(item => item.item._id === current.item._id);
         if (existing) {
-          // If duplicate found, sum quantities
           existing.quantity += current.quantity;
         } else {
           acc.push({ ...current });
@@ -80,47 +87,18 @@ export default function PlaceOrder() {
         return acc;
       }, []);
 
-      setCart(uniqueCart);
+      console.log("After duplicate removal:", uniqueCart);
 
-      // ✅ ENHANCED: Enhanced duplicate detection
-      const currentCartHash = generateCartHash(uniqueCart);
-      const recentOrder = localStorage.getItem('recentOrder');
-      
-      if (recentOrder) {
-        const recentOrderData = JSON.parse(recentOrder);
-        const timeDiff = Date.now() - recentOrderData.timestamp;
-        const isSameCart = recentOrderData.cartHash === currentCartHash;
-        
-        if (timeDiff < 120000 && isSameCart) {
-          console.log("Duplicate order detected, redirecting to success");
-          toast.success("Order was already placed successfully!");
-          setOrderSuccess(true);
-          setOrderId(recentOrderData.orderId);
-          setIsPlacingOrder(false);
-          setHasPlacedOrder(true);
-          return;
-        }
-      }
-
-      // ✅ ENHANCED: Immediate flag to prevent duplicate API calls
-      setHasPlacedOrder(true);
-
-      // ✅ ENHANCED: Prepare order data with enhanced validation
-      const orderData = {
-        items: uniqueCart.map((cartItem: CartItem) => ({
+      const orderPayload = {
+        items: uniqueCart.map(cartItem => ({
           item: cartItem.item._id,
           quantity: cartItem.quantity,
         })),
         clientTimestamp: Date.now(),
-        cartHash: currentCartHash,
-        orderIdentifier: orderIdentifier || `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        orderIdentifier: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       };
 
-      console.log("Placing order with data:", orderData);
-
-      // Place the order with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      console.log("Sending order payload:", orderPayload);
 
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -128,143 +106,128 @@ export default function PlaceOrder() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(orderData),
-        signal: controller.signal
+        body: JSON.stringify(orderPayload),
       });
 
-      clearTimeout(timeoutId);
-
       const data = await response.json();
+      console.log("Order response:", data);
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to place order");
+        throw new Error(data.message || `Failed to place order: ${response.status}`);
       }
 
-      // ✅ ENHANCED: Verify order integrity
-      if (data.order && data.order.items) {
-        const placedItemsCount = data.order.items.reduce((total: number, item: any) => total + item.quantity, 0);
-        const originalItemsCount = uniqueCart.reduce((total, item) => total + item.quantity, 0);
-        
-        if (placedItemsCount !== originalItemsCount) {
-          console.warn(`Item count mismatch: Original ${originalItemsCount}, Placed ${placedItemsCount}`);
-          // This is just a warning, don't fail the order
-        }
-      }
-
+      // Success - store the complete order data
+      setOrderData(data);
       setOrderSuccess(true);
-      setOrderId(data.order?._id || "");
       
-      // ✅ ENHANCED: Store recent order info
-      localStorage.setItem('recentOrder', JSON.stringify({
-        orderId: data.order?._id,
-        timestamp: Date.now(),
-        cartHash: currentCartHash,
-        itemCount: uniqueCart.reduce((total, item) => total + item.quantity, 0),
-        totalAmount: getTotalPrice(uniqueCart)
-      }));
-
-      // ✅ ENHANCED: Clear cart data
+      // Clean up localStorage
       localStorage.removeItem('loginRedirect');
       localStorage.removeItem('canteenCart');
-
-      toast.success(`Order placed successfully! ${uniqueCart.length} unique item(s)`);
-
+      
+      console.log("Order placed successfully, cart cleared");
+      
     } catch (error: any) {
       console.error("Order placement error:", error);
-      
-      if (error.name === 'AbortError') {
-        toast.error("Order request timed out. Please try again.");
-      }
-      
+      setErrorMessage(error.message || "Failed to place order. Please try again.");
       setOrderFailed(true);
-      setHasPlacedOrder(false); // Allow retry on failure
-      toast.error(error.message || "Failed to place order");
     } finally {
       setIsPlacingOrder(false);
     }
   };
 
-  const getTotalPrice = (cartItems: CartItem[] = cart) => {
-    return cartItems.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
+  const getTotalPrice = () => {
+    return cart.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
   };
 
-  const getTotalItems = (cartItems: CartItem[] = cart) => {
-    return cartItems.reduce((total, cartItem) => total + cartItem.quantity, 0);
-  };
-
-  const handleDashboardRedirect = () => {
-    router.push('/student');
+  const getTotalItems = () => {
+    return cart.reduce((total, cartItem) => total + cartItem.quantity, 0);
   };
 
   const handleRetry = () => {
-    if (orderAttempts >= 2) {
-      toast.error("Maximum retry attempts reached. Please contact support.");
-      return;
-    }
-
-    localStorage.removeItem('recentOrder');
-    setHasPlacedOrder(false);
     setOrderFailed(false);
     setIsPlacingOrder(true);
-    
-    setTimeout(() => {
-      placeOrderAfterLogin();
-    }, 1000);
+    // Retry with current cart
+    setTimeout(() => placeOrder(cart), 1000);
   };
 
+  const handleBackToMenu = () => {
+    router.push('/');
+  };
 
+  const handleViewOrders = () => {
+    // Redirect to student dashboard or home since we don't have my-orders page
+    router.push('/student');
+  };
+
+  // Loading state
   if (isPlacingOrder) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-        <Toaster position="top-right" />
-        <div className="text-center max-w-md mx-auto p-8">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-500 mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Placing Your Order</h2>
-          <p className="text-gray-600 mb-4">Processing your delicious meal...</p>
-          <div className="bg-white rounded-2xl p-6 border border-gray-200">
-            <p className="text-sm text-gray-600">
-              Ordering {getTotalItems()} item{getTotalItems() !== 1 ? 's' : ''} from your cart
-            </p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Placing Your Order</h2>
+          <p className="text-gray-600 mb-6">We're preparing your delicious meal...</p>
+          
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Items:</span>
+                <span className="font-semibold">{getTotalItems()} items</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Total Amount:</span>
+                <span className="font-semibold text-green-600">₹{getTotalPrice().toFixed(2)}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (orderSuccess) {
+  // Success state
+  if (orderSuccess && orderData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-        <Toaster position="top-right" />
-        <div className="text-center max-w-md mx-auto p-8">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="text-green-600" size={40} />
           </div>
+          
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Order Confirmed! 🎉</h2>
           <p className="text-gray-600 mb-6">
-            Your delicious meal is being prepared with care.
+            Your order has been placed successfully and is being prepared.
           </p>
           
-          {orderId && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-              <p className="text-green-800 font-medium">
-                Order ID: <span className="font-bold">#{orderId.slice(-8).toUpperCase()}</span>
-              </p>
-              <p className="text-green-700 text-sm mt-1">
-                {getTotalItems()} item{getTotalItems() !== 1 ? 's' : ''} • ₹{getTotalPrice().toFixed(2)}
-              </p>
+          {/* Order Details */}
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <CheckCircle className="text-green-600" size={20} />
+              <span className="font-semibold text-green-800">Order Details</span>
             </div>
-          )}
+            <p className="text-green-800 font-medium mb-2">
+              Order #: <span className="font-bold">
+                {orderData.order?.orderNumber || orderData.order?._id?.slice(-8).toUpperCase() || 'N/A'}
+              </span>
+            </p>
+            <p className="text-green-700 text-sm">
+              {getTotalItems()} items • ₹{getTotalPrice().toFixed(2)}
+            </p>
+          </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-gray-200 mb-6">
+          {/* Order Summary */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm mb-6">
             <h3 className="font-semibold text-gray-900 mb-4 text-lg">Order Summary</h3>
-            <div className="space-y-3 mb-4">
+            <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
               {cart.map((cartItem, index) => (
-                <div key={`${cartItem.item._id}-${index}`} className="flex justify-between items-center">
-                  <div className="text-left">
-                    <span className="text-gray-700 font-medium">{cartItem.item.name}</span>
-                    <span className="text-gray-500 text-sm ml-2">× {cartItem.quantity}</span>
+                <div key={`${cartItem.item._id}-${index}`} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                  <div className="text-left flex-1">
+                    <span className="text-gray-700 font-medium block">{cartItem.item.name}</span>
+                    <span className="text-gray-500 text-sm">× {cartItem.quantity}</span>
                   </div>
-                  <span className="font-semibold">₹{cartItem.item.price * cartItem.quantity}</span>
+                  <span className="font-semibold text-gray-900">
+                    ₹{(cartItem.item.price * cartItem.quantity).toFixed(2)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -276,66 +239,78 @@ export default function PlaceOrder() {
             </div>
           </div>
 
+          {/* Action Buttons */}
           <div className="space-y-3">
             <button
-              onClick={handleDashboardRedirect}
+              onClick={handleViewOrders}
               className="w-full bg-green-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:bg-green-600 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
-              Track My Orders
+              View Dashboard
             </button>
-            <Link
-              href="/"
-              className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 border border-gray-300 block text-center"
+            <button
+              onClick={handleBackToMenu}
+              className="w-full bg-white text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200 border border-gray-300"
             >
               Order More Food
-            </Link>
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (orderFailed) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-        <Toaster position="top-right" />
-        <div className="text-center max-w-md mx-auto p-8">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full">
           <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <ShoppingCart className="text-red-600" size={40} />
+            <AlertCircle className="text-red-600" size={40} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Issue</h2>
-          <p className="text-gray-600 mb-6">We encountered a problem placing your order.</p>
           
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-            <p className="text-yellow-800 text-sm">
-              💡 <strong>Tip:</strong> Check if you have duplicate items in your cart
-            </p>
-          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Order Failed</h2>
+          <p className="text-gray-600 mb-2">{errorMessage}</p>
+          
+          {errorMessage?.toLowerCase().includes('duplicate') && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+              <p className="text-yellow-800 text-sm">
+                💡 <strong>Tip:</strong> It seems this order was already placed. Check your dashboard.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-3">
             <button
               onClick={handleRetry}
               className="w-full bg-green-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-600 transition-colors duration-300"
             >
-              Try Placing Order Again
+              Try Again
             </button>
             <button
-              onClick={() => router.push('/')}
+              onClick={handleBackToMenu}
               className="w-full bg-blue-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-600 transition-colors duration-300"
             >
-              Review Cart & Try Again
+              Back to Menu
             </button>
-            <Link
-              href="/student"
-              className="w-full bg-gray-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-gray-600 transition-colors duration-300 block text-center"
+            <button
+              onClick={handleViewOrders}
+              className="w-full bg-gray-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-gray-600 transition-colors duration-300"
             >
               Go to Dashboard
-            </Link>
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  return null;
+  // Default loading state
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
+      <div className="text-center">
+        <Loader className="animate-spin text-green-500 mx-auto mb-4" size={32} />
+        <p className="text-gray-600">Loading order...</p>
+      </div>
+    </div>
+  );
 }
