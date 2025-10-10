@@ -25,6 +25,7 @@ interface OrderResponse {
     totalAmount: number;
     status: string;
     createdAt?: string;
+    role?: string; // ✅ ADDED: Role from order response
   };
 }
 
@@ -37,6 +38,7 @@ export default function PlaceOrder() {
   const [orderData, setOrderData] = useState<OrderResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [progress, setProgress] = useState(0);
+  const [userRole, setUserRole] = useState<'student' | 'staff' | 'admin' | null>(null);
 
   // ✅ CRITICAL FIX: Use refs to track order placement state
   const orderPlacedRef = useRef(false);
@@ -51,21 +53,37 @@ export default function PlaceOrder() {
     }
 
     const savedCart = localStorage.getItem('loginRedirect');
+    console.log("🔍 Retrieved loginRedirect data:", savedCart);
+    
     if (!savedCart) {
-      console.log("No cart data found, redirecting to home");
+      console.log("❌ No cart data found, redirecting to home");
       router.push('/');
       return;
     }
 
     try {
-      const { cart: savedCartData } = JSON.parse(savedCart);
+      const parsedData = JSON.parse(savedCart);
+      console.log("📦 Parsed redirect data:", parsedData);
+      
+      const savedCartData = parsedData.cart;
+      const userType = parsedData.userType || parsedData.role;
+
+      // ✅ ADDED: Detect user role for proper redirection
+      if (userType) {
+        setUserRole(userType);
+        console.log("🎯 User role detected:", userType);
+      } else {
+        console.log("⚠️ No user role found, detecting from API...");
+        detectUserRole();
+      }
+
       if (!savedCartData || savedCartData.length === 0) {
-        console.log("Empty cart, redirecting to home");
+        console.log("🛒 Empty cart, redirecting to home");
         router.push('/');
         return;
       }
       
-      console.log("Cart data found:", savedCartData.length, "items");
+      console.log("✅ Cart data found:", savedCartData.length, "items");
       setCart(savedCartData);
       
       // ✅ Generate unique order identifier once
@@ -75,10 +93,76 @@ export default function PlaceOrder() {
       
       placeOrder(savedCartData);
     } catch (error) {
-      console.error('Error parsing cart data:', error);
+      console.error('❌ Error parsing cart data:', error);
       router.push('/');
     }
   }, [router]);
+
+  // ✅ ADDED: Function to detect user role
+  const detectUserRole = async () => {
+    try {
+      console.log("🔍 Detecting user role...");
+      
+      // Method 1: Check localStorage for user info
+      const userInfo = localStorage.getItem('userInfo');
+      if (userInfo) {
+        const userData = JSON.parse(userInfo);
+        if (userData.role) {
+          setUserRole(userData.role);
+          console.log("👤 User role from localStorage:", userData.role);
+          return;
+        }
+      }
+
+      // Method 2: Make API call to get current user
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.role) {
+          setUserRole(userData.role);
+          localStorage.setItem('userInfo', JSON.stringify(userData));
+          console.log("👤 User role from API:", userData.role);
+        }
+      } else {
+        console.log("⚠️ Could not fetch user data from API, defaulting to student");
+        setUserRole('student');
+      }
+    } catch (error) {
+      console.error('❌ Error detecting user role:', error);
+      // Default to student if cannot detect
+      setUserRole('student');
+    }
+  };
+
+  // ✅ ADDED: Role-based redirection function
+  const getDashboardRoute = () => {
+    console.log("🎯 Getting dashboard route for role:", userRole);
+    
+    if (userRole === 'staff') {
+      console.log("🚀 Redirecting to STAFF dashboard");
+      return '/staff';
+    } else if (userRole === 'admin') {
+      console.log("🚀 Redirecting to ADMIN dashboard");
+      return '/admin';
+    } else {
+      console.log("🚀 Redirecting to STUDENT dashboard");
+      return '/student';
+    }
+  };
+
+  // ✅ ADDED: Get dashboard name for display
+  const getDashboardName = () => {
+    if (userRole === 'staff') {
+      return 'Staff Dashboard';
+    } else if (userRole === 'admin') {
+      return 'Admin Dashboard';
+    } else {
+      return 'Student Dashboard';
+    }
+  };
 
   // Progress animation
   useEffect(() => {
@@ -144,7 +228,7 @@ export default function PlaceOrder() {
           quantity: cartItem.quantity,
         })),
         clientTimestamp: Date.now(),
-        orderIdentifier: orderIdentifierRef.current // ✅ Use the same identifier
+        orderIdentifier: orderIdentifierRef.current
       };
 
       console.log("📤 Sending order payload:", orderPayload);
@@ -165,6 +249,13 @@ export default function PlaceOrder() {
 
       if (!response.ok) {
         throw new Error(data.message || `Failed to place order: ${response.status}`);
+      }
+
+      // ✅ CRITICAL FIX: Extract role from order response if available
+      if (data.order && data.order.role) {
+        console.log("🎯 User role detected from order response:", data.order.role);
+        setUserRole(data.order.role);
+        localStorage.setItem('userInfo', JSON.stringify({ role: data.order.role }));
       }
 
       // ✅ CRITICAL FIX: Mark order as placed to prevent duplicates
@@ -218,8 +309,34 @@ export default function PlaceOrder() {
     router.push('/');
   };
 
+  // ✅ FIXED: Role-based redirection with proper role detection
   const handleViewOrders = () => {
-    router.push('/student');
+    // Use the detected user role from state
+    const dashboardRoute = getDashboardRoute();
+    console.log(`🎯 FINAL REDIRECTION: Going to ${dashboardRoute} (User role: ${userRole})`);
+    router.push(dashboardRoute);
+  };
+
+  // ✅ ADDED: Alternative redirection that uses order data role
+  const handleViewOrdersFromOrderData = () => {
+    if (orderData && orderData.order && orderData.order.role) {
+      // Use role from order response (most accurate)
+      const roleFromOrder = orderData.order.role;
+      console.log(`🎯 Using role from order data: ${roleFromOrder}`);
+      
+      let dashboardRoute = '/student';
+      if (roleFromOrder === 'staff') {
+        dashboardRoute = '/staff';
+      } else if (roleFromOrder === 'admin') {
+        dashboardRoute = '/admin';
+      }
+      
+      console.log(`🎯 FINAL REDIRECTION: Going to ${dashboardRoute} (Role from order: ${roleFromOrder})`);
+      router.push(dashboardRoute);
+    } else {
+      // Fallback to detected user role
+      handleViewOrders();
+    }
   };
 
   const handleContactSupport = () => {
@@ -231,6 +348,15 @@ export default function PlaceOrder() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md w-full animate-fade-in">
+          {/* User Role Indicator */}
+          {userRole && (
+            <div className="mb-4 inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-gray-200 shadow-sm">
+              <span className="text-sm font-medium text-gray-700">
+                Ordering as: <span className="font-bold capitalize">{userRole}</span>
+              </span>
+            </div>
+          )}
+
           {/* Animated Progress Bar */}
           <div className="mb-8">
             <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
@@ -304,6 +430,8 @@ export default function PlaceOrder() {
 
   // Enhanced Success state
   if (orderSuccess && orderData) {
+    const dashboardName = getDashboardName();
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md w-full animate-scale-in">
@@ -318,6 +446,14 @@ export default function PlaceOrder() {
           <h2 className="text-4xl font-black text-gray-900 mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
             Order Confirmed! 🎉
           </h2>
+
+          {/* User Role Badge */}
+          {userRole && (
+            <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+              <span>Order placed as: <span className="font-bold capitalize">{userRole}</span></span>
+            </div>
+          )}
+
           <p className="text-gray-600 mb-8 text-lg font-medium">
             Your delicious meal is being prepared with love and care!
           </p>
@@ -415,17 +551,18 @@ export default function PlaceOrder() {
               <p>👨‍🍳 Our chefs are preparing your meal</p>
               <p>⏱️ Estimated ready time: 15-20 minutes</p>
               <p>📱 You'll get updates on your dashboard</p>
+              <p className="font-semibold mt-2">🎯 Go to: {dashboardName}</p>
             </div>
           </div>
 
-          {/* Enhanced Action Buttons */}
+          {/* Enhanced Action Buttons - USING ORDER DATA ROLE */}
           <div className="space-y-4">
             <button
-              onClick={handleViewOrders}
+              onClick={handleViewOrdersFromOrderData} 
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-8 rounded-xl font-black text-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:scale-105 flex items-center justify-center gap-3"
             >
               <CheckCircle size={20} />
-              Track My Orders
+              Go to {dashboardName}
             </button>
             
             <button
@@ -462,6 +599,8 @@ export default function PlaceOrder() {
 
   // Enhanced Error state
   if (orderFailed) {
+    const dashboardName = getDashboardName();
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md w-full animate-shake">
@@ -532,10 +671,10 @@ export default function PlaceOrder() {
             </button>
             
             <button
-              onClick={handleViewOrders}
+              onClick={handleViewOrdersFromOrderData} 
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
             >
-              📊 View Dashboard
+              📊 View {dashboardName}
             </button>
             
             <button

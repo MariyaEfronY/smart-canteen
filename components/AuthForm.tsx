@@ -52,41 +52,56 @@ export default function AuthForm({ type }: Props) {
     return result;
   };
 
-  // ✅ UPDATED: Enhanced redirection function with order placement check
+  // ✅ FIXED: Enhanced redirection function with proper order placement check
   const redirectUser = async (formRole?: string) => {
     try {
+      console.log("🔄 Starting redirection process...");
+      
       // Check if there's a pending order from localStorage
       const redirectData = localStorage.getItem('loginRedirect');
       
       if (redirectData) {
-        const { fromOrder, redirectTo } = JSON.parse(redirectData);
+        const parsedData = JSON.parse(redirectData);
+        console.log("📦 Found redirect data:", parsedData);
         
-        if (fromOrder && redirectTo === '/place-order') {
-          // Redirect to place order page instead of dashboard
+        // ✅ CRITICAL FIX: Properly check for order placement redirect
+        if (parsedData.fromOrder === true && parsedData.redirectTo === '/place-order') {
+          console.log("🎯 Redirecting to place-order page (pending order detected)");
           router.push('/place-order');
           return;
+        } else {
+          console.log("ℹ️ No pending order found in redirect data");
         }
+      } else {
+        console.log("ℹ️ No redirect data found in localStorage");
       }
 
-      // Fetch current user data to get accurate role
+      // If no pending order, proceed with normal dashboard redirection
+      console.log("🔍 Fetching user data for role-based redirection...");
       const userResponse = await fetch("/api/auth/me");
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const userRole = userData.user?.role || formRole;
+        console.log("👤 User role detected:", userRole);
         
         // Redirect based on confirmed role
         if (userRole === "admin") {
+          console.log("🚀 Redirecting to admin dashboard");
           router.push("/admin");
         } else if (userRole === "staff") {
+          console.log("🚀 Redirecting to staff dashboard");
           router.push("/staff");
         } else {
+          console.log("🚀 Redirecting to student dashboard");
           router.push("/student");
         }
       } else {
+        console.log("⚠️ Could not fetch user data, using fallback redirection");
         // Fallback to form data role
         redirectFallback(formRole);
       }
     } catch (error) {
+      console.error("❌ Error in redirectUser:", error);
       // Fallback to form data role
       redirectFallback(formRole);
     }
@@ -94,6 +109,7 @@ export default function AuthForm({ type }: Props) {
 
   // ✅ FALLBACK REDIRECTION
   const redirectFallback = (role: string | undefined) => {
+    console.log("🔄 Using fallback redirection for role:", role);
     if (role === "admin") {
       router.push("/admin");
     } else if (role === "staff") {
@@ -139,13 +155,16 @@ export default function AuthForm({ type }: Props) {
         };
       }
 
+      console.log("📤 Sending auth request to:", url);
       const result = await apiRequest(url, requestData);
+      console.log("✅ Auth successful, redirecting...");
       
       // ✅ UPDATED: Enhanced redirection after successful auth
       await redirectUser(data.role);
       
     } catch (err: unknown) {
       const error = err as Error;
+      console.error("❌ Auth error:", error);
       alert(error.message || "Something went wrong");
     } finally {
       setIsLoading(false);
@@ -388,8 +407,14 @@ export default function AuthForm({ type }: Props) {
     if (typeof window !== 'undefined') {
       const redirectData = localStorage.getItem('loginRedirect');
       if (redirectData) {
-        const { fromOrder } = JSON.parse(redirectData);
-        return fromOrder;
+        try {
+          const { fromOrder } = JSON.parse(redirectData);
+          console.log("🛒 Pending order check:", fromOrder);
+          return fromOrder;
+        } catch (error) {
+          console.error("❌ Error checking pending order:", error);
+          return false;
+        }
       }
     }
     return false;
