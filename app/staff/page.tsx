@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, CreditCard, Utensils, Users, BarChart3, RefreshCw, Shield, Bell, Wifi, WifiOff } from "lucide-react";
+import { 
+  Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, 
+  CreditCard, Utensils, Users, BarChart3, RefreshCw, Shield, 
+  Bell, Wifi, WifiOff, Search, Filter, Download, Eye, EyeOff,
+  TrendingUp, AlertTriangle, Coffee, Pizza, Salad
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -11,6 +16,7 @@ interface OrderItem {
     name: string;
     price: number;
     imageUrl: string;
+    category?: string;
   };
   quantity: number;
 }
@@ -25,6 +31,18 @@ interface Order {
   status: "pending" | "preparing" | "ready" | "completed" | "cancelled";
   createdAt: string;
   updatedAt: string;
+  estimatedReadyTime?: string;
+  specialInstructions?: string;
+}
+
+interface DashboardStats {
+  total: number;
+  pending: number;
+  preparing: number;
+  ready: number;
+  completed: number;
+  revenue: number;
+  averageTime: number;
 }
 
 export default function StaffDashboard() {
@@ -36,36 +54,146 @@ export default function StaffDashboard() {
   const [activeTab, setActiveTab] = useState("pending");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<"online" | "offline">("online");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   
   // Refs for interval management
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
   const previousOrdersRef = useRef<Order[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Initialize audio for notifications
   useEffect(() => {
-    fetchUserData();
-    fetchOrders();
-    setupAutoRefresh();
-    setupConnectionListener();
-
-    return () => {
-      // Cleanup intervals on unmount
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
+    audioRef.current = new Audio('/notification-sound.mp3');
+    audioRef.current.volume = 0.3;
   }, []);
 
-  // Setup auto-refresh based on autoRefresh state
-  useEffect(() => {
-    setupAutoRefresh();
-  }, [autoRefresh]);
+  // Enhanced order fetching with retry logic
+  const fetchOrders = async (showToast = true) => {
+    try {
+      setIsRefreshing(true);
+      console.log("👨‍🏫 Fetching staff orders...");
+      
+      const response = await fetch('/api/orders/staff', {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch staff orders: ${response.status}`);
+      }
+      
+      const ordersData = await response.json();
+      console.log(`✅ Staff orders received: ${ordersData.length} orders`);
+      
+      setOrders(ordersData);
+      previousOrdersRef.current = ordersData;
+      lastFetchTimeRef.current = Date.now();
+      
+      if (showToast && !isLoading) {
+        toast.success(`Orders updated! ${ordersData.length} orders loaded`);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching staff orders:", error);
+      if (showToast) {
+        toast.error("Failed to load orders");
+      }
+      
+      // Retry after 5 seconds if failed
+      setTimeout(() => fetchOrders(false), 5000);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const silentRefresh = async () => {
+    try {
+      const response = await fetch("/api/orders/staff", {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'X-Silent-Refresh': 'true'
+        }
+      });
+      
+      if (response.ok) {
+        const ordersData = await response.json();
+        setOrders(ordersData);
+        lastFetchTimeRef.current = Date.now();
+        
+        // Check for new orders and status changes
+        checkForOrderChanges(ordersData);
+      }
+    } catch (error) {
+      console.error("Silent refresh failed:", error);
+    }
+  };
+
+  const checkForOrderChanges = (newOrders: Order[]) => {
+    if (previousOrdersRef.current.length === 0) {
+      previousOrdersRef.current = newOrders;
+      return;
+    }
+
+    // Check for new orders
+    const newOrderIds = newOrders.map(order => order._id);
+    const previousOrderIds = previousOrdersRef.current.map(order => order._id);
+    
+    const newOrdersAdded = newOrders.filter(order => !previousOrderIds.includes(order._id));
+    if (newOrdersAdded.length > 0 && autoRefresh) {
+      newOrdersAdded.forEach(order => {
+        toast.success(`🆕 New order from ${order.userName}`, {
+          duration: 4000,
+          icon: '🎯'
+        });
+        // Play notification sound
+        audioRef.current?.play().catch(() => {}); // Silent fail if audio fails
+      });
+    }
+
+    // Check for status changes
+    newOrders.forEach(newOrder => {
+      const oldOrder = previousOrdersRef.current.find(order => order._id === newOrder._id);
+      if (oldOrder && oldOrder.status !== newOrder.status) {
+        showStatusChangeNotification(oldOrder, newOrder);
+      }
+    });
+
+    previousOrdersRef.current = newOrders;
+  };
+
+  const showStatusChangeNotification = (oldOrder: Order, newOrder: Order) => {
+    const statusMessages = {
+      "pending": "Order placed and waiting for confirmation",
+      "preparing": "Order is being prepared! 👨‍🍳",
+      "ready": "Order is ready for pickup! 🎉",
+      "completed": "Order completed!",
+      "cancelled": "Order has been cancelled"
+    };
+
+    const message = statusMessages[newOrder.status as keyof typeof statusMessages];
+    if (message && autoRefresh) {
+      toast.success(`Order #${newOrder._id.slice(-8)}: ${message}`, {
+        duration: 4000,
+        icon: '🔄'
+      });
+      audioRef.current?.play().catch(() => {});
+    }
+  };
 
   const setupConnectionListener = () => {
     const handleOnline = () => {
       setConnectionStatus("online");
       toast.success("Connection restored - Live updates enabled");
       setupAutoRefresh();
+      fetchOrders(false); // Immediate refresh when back online
     };
 
     const handleOffline = () => {
@@ -100,78 +228,7 @@ export default function StaffDashboard() {
         if (now - lastFetchTimeRef.current > 2000) {
           silentRefresh();
         }
-      }, 3000); // Refresh every 3 seconds for staff (more frequent)
-    }
-  };
-
-  const silentRefresh = async () => {
-    try {
-      const response = await fetch("/api/orders?role=admin", {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'X-Silent-Refresh': 'true'
-        }
-      });
-      
-      if (response.ok) {
-        const ordersData = await response.json();
-        setOrders(ordersData);
-        lastFetchTimeRef.current = Date.now();
-        
-        // Check for new orders and status changes
-        checkForOrderChanges(ordersData);
-      }
-    } catch (error) {
-      console.error("Silent refresh failed:", error);
-    }
-  };
-
-  const checkForOrderChanges = (newOrders: Order[]) => {
-    if (previousOrdersRef.current.length === 0) {
-      previousOrdersRef.current = newOrders;
-      return;
-    }
-
-    // Check for new orders
-    const newOrderIds = newOrders.map(order => order._id);
-    const previousOrderIds = previousOrdersRef.current.map(order => order._id);
-    
-    const newOrdersAdded = newOrders.filter(order => !previousOrderIds.includes(order._id));
-    if (newOrdersAdded.length > 0) {
-      newOrdersAdded.forEach(order => {
-        toast.success(`🆕 New order from ${order.userName}`, {
-          duration: 4000,
-          icon: '🎯'
-        });
-      });
-    }
-
-    // Check for status changes
-    newOrders.forEach(newOrder => {
-      const oldOrder = previousOrdersRef.current.find(order => order._id === newOrder._id);
-      if (oldOrder && oldOrder.status !== newOrder.status) {
-        showStatusChangeNotification(oldOrder, newOrder);
-      }
-    });
-
-    previousOrdersRef.current = newOrders;
-  };
-
-  const showStatusChangeNotification = (oldOrder: Order, newOrder: Order) => {
-    const statusMessages = {
-      "pending": "Order placed and waiting for confirmation",
-      "preparing": "Order is being prepared! 👨‍🍳",
-      "ready": "Order is ready for pickup! 🎉",
-      "completed": "Order completed!",
-      "cancelled": "Order has been cancelled"
-    };
-
-    const message = statusMessages[newOrder.status as keyof typeof statusMessages];
-    if (message) {
-      toast.success(`Order #${newOrder._id.slice(-8)}: ${message}`, {
-        duration: 4000,
-        icon: '🔄'
-      });
+      }, 3000); // Refresh every 3 seconds for staff
     }
   };
 
@@ -187,31 +244,6 @@ export default function StaffDashboard() {
     } catch (error) {
       console.error("Error fetching user:", error);
       router.push("/login");
-    }
-  };
-
-  const fetchOrders = async (showToast = true) => {
-    try {
-      setIsRefreshing(true);
-      const response = await fetch("/api/orders?role=admin");
-      if (response.ok) {
-        const ordersData = await response.json();
-        setOrders(ordersData);
-        previousOrdersRef.current = ordersData;
-        lastFetchTimeRef.current = Date.now();
-        
-        if (showToast) {
-          toast.success(`Orders updated! ${ordersData.length} orders loaded`);
-        }
-      } else {
-        toast.error("Failed to fetch orders");
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      toast.error("Error loading orders");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
     }
   };
 
@@ -239,7 +271,8 @@ export default function StaffDashboard() {
         // Refresh orders to get updated status
         fetchOrders(false);
       } else {
-        toast.error("Failed to update order status");
+        const errorData = await response.json();
+        toast.error(errorData.message || "Failed to update order status");
       }
     } catch (error) {
       console.error("Error updating order:", error);
@@ -263,17 +296,17 @@ export default function StaffDashboard() {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case "pending":
-        return { icon: Clock, color: "text-yellow-600 bg-yellow-100 border border-yellow-200", label: "Pending" };
+        return { icon: Clock, color: "text-yellow-600 bg-yellow-100 border border-yellow-200", label: "Pending", bgColor: "bg-yellow-50" };
       case "preparing":
-        return { icon: ChefHat, color: "text-blue-600 bg-blue-100 border border-blue-200", label: "Preparing" };
+        return { icon: ChefHat, color: "text-blue-600 bg-blue-100 border border-blue-200", label: "Preparing", bgColor: "bg-blue-50" };
       case "ready":
-        return { icon: Package, color: "text-green-600 bg-green-100 border border-green-200", label: "Ready for Pickup" };
+        return { icon: Package, color: "text-green-600 bg-green-100 border border-green-200", label: "Ready for Pickup", bgColor: "bg-green-50" };
       case "completed":
-        return { icon: CheckCircle, color: "text-emerald-600 bg-emerald-100 border border-emerald-200", label: "Completed" };
+        return { icon: CheckCircle, color: "text-emerald-600 bg-emerald-100 border border-emerald-200", label: "Completed", bgColor: "bg-emerald-50" };
       case "cancelled":
-        return { icon: XCircle, color: "text-red-600 bg-red-100 border border-red-200", label: "Cancelled" };
+        return { icon: XCircle, color: "text-red-600 bg-red-100 border border-red-200", label: "Cancelled", bgColor: "bg-red-50" };
       default:
-        return { icon: Clock, color: "text-gray-600 bg-gray-100 border border-gray-200", label: "Unknown" };
+        return { icon: Clock, color: "text-gray-600 bg-gray-100 border border-gray-200", label: "Unknown", bgColor: "bg-gray-50" };
     }
   };
 
@@ -299,22 +332,60 @@ export default function StaffDashboard() {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
+  // Enhanced filtering and sorting
   const filteredOrders = orders.filter(order => {
-    if (activeTab === "all") return true;
-    return order.status === activeTab;
+    // Tab filtering
+    if (activeTab !== "all" && order.status !== activeTab) return false;
+    
+    // Search filtering
+    if (searchTerm && !order.userName.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !order._id.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+    
+    // Category filtering
+    if (selectedCategory !== "all") {
+      const hasCategoryItem = order.items.some(item => 
+        item.item.category?.toLowerCase() === selectedCategory.toLowerCase()
+      );
+      if (!hasCategoryItem) return false;
+    }
+    
+    return true;
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case "newest":
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case "oldest":
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case "amount":
+        return b.totalAmount - a.totalAmount;
+      case "items":
+        return b.items.reduce((sum, item) => sum + item.quantity, 0) - 
+               a.items.reduce((sum, item) => sum + item.quantity, 0);
+      default:
+        return 0;
+    }
   });
 
-  const stats = {
+  // Enhanced stats calculation
+  const stats: DashboardStats = {
     total: orders.length,
     pending: orders.filter(order => order.status === "pending").length,
     preparing: orders.filter(order => order.status === "preparing").length,
     ready: orders.filter(order => order.status === "ready").length,
     completed: orders.filter(order => order.status === "completed").length,
+    revenue: orders.filter(order => order.status === "completed")
+              .reduce((sum, order) => sum + order.totalAmount, 0),
+    averageTime: orders.filter(order => order.status === "completed").length > 0 
+      ? orders.filter(order => order.status === "completed")
+          .reduce((sum, order) => {
+            const created = new Date(order.createdAt).getTime();
+            const updated = new Date(order.updatedAt).getTime();
+            return sum + (updated - created) / (1000 * 60); // Convert to minutes
+          }, 0) / orders.filter(order => order.status === "completed").length
+      : 0
   };
-
-  const totalRevenue = orders
-    .filter(order => order.status === "completed")
-    .reduce((sum, order) => sum + order.totalAmount, 0);
 
   // Get urgent orders (pending for more than 5 minutes)
   const urgentOrders = orders.filter(order => {
@@ -323,6 +394,41 @@ export default function StaffDashboard() {
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     return orderTime < fiveMinutesAgo;
   });
+
+  // Get popular categories
+  const popularCategories = orders.flatMap(order => 
+    order.items.map(item => item.item.category || 'Uncategorized')
+  ).reduce((acc: {[key: string]: number}, category) => {
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+
+  const getCategoryIcon = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'pizza': return <Pizza size={16} />;
+      case 'burger': return <Utensils size={16} />;
+      case 'salad': return <Salad size={16} />;
+      case 'beverage': return <Coffee size={16} />;
+      default: return <Utensils size={16} />;
+    }
+  };
+
+  useEffect(() => {
+    fetchUserData();
+    fetchOrders();
+    setupAutoRefresh();
+    setupConnectionListener();
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setupAutoRefresh();
+  }, [autoRefresh]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
@@ -405,9 +511,9 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Enhanced Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-2 lg:grid-cols-5 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-6 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
@@ -461,15 +567,99 @@ export default function StaffDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 col-span-2 lg:col-span-1">
+          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-xs sm:text-sm font-semibold">Revenue</p>
-                <p className="text-xl sm:text-2xl font-bold text-emerald-600">₹{totalRevenue.toFixed(2)}</p>
+                <p className="text-xl sm:text-2xl font-bold text-emerald-600">₹{stats.revenue.toFixed(2)}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center">
                 <CreditCard className="text-emerald-600" size={20} />
               </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Avg. Time</p>
+                <p className="text-xl sm:text-2xl font-bold text-cyan-600">{stats.averageTime.toFixed(0)}m</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-100 to-blue-100 rounded-xl flex items-center justify-center">
+                <TrendingUp className="text-cyan-600" size={20} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Controls Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
+              {/* Search */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search orders by name or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                />
+              </div>
+
+              {/* Category Filter */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="all">All Categories</option>
+                {Object.keys(popularCategories).map(category => (
+                  <option key={category} value={category}>
+                    {category} ({popularCategories[category]})
+                  </option>
+                ))}
+              </select>
+
+              {/* Sort By */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="amount">Highest Amount</option>
+                <option value="items">Most Items</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors duration-200"
+              >
+                {showCompleted ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showCompleted ? 'Hide Completed' : 'Show Completed'}
+              </button>
+              
+              <button
+                onClick={() => {
+                  // Export functionality
+                  const dataStr = JSON.stringify(orders, null, 2);
+                  const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(dataBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `orders-${new Date().toISOString().split('T')[0]}.json`;
+                  link.click();
+                }}
+                className="flex items-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors duration-200"
+              >
+                <Download size={16} />
+                Export
+              </button>
             </div>
           </div>
         </div>
@@ -527,7 +717,7 @@ export default function StaffDashboard() {
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Enhanced Tabs */}
           <div className="border-b border-gray-200 bg-gray-50">
             <div className="px-4 sm:px-6 flex space-x-2 sm:space-x-6 overflow-x-auto">
               {[
@@ -567,7 +757,7 @@ export default function StaffDashboard() {
             </div>
           </div>
 
-          {/* Orders List */}
+          {/* Enhanced Orders List */}
           <div className="p-4 sm:p-6">
             {isRefreshing ? (
               <div className="text-center py-12">
@@ -591,9 +781,12 @@ export default function StaffDashboard() {
             ) : (
               <div className="space-y-4 sm:space-y-6">
                 {filteredOrders.map((order, index) => {
+                  if (!showCompleted && order.status === "completed") return null;
+                  
                   const StatusIcon = getStatusInfo(order.status).icon;
                   const statusColor = getStatusInfo(order.status).color;
                   const statusLabel = getStatusInfo(order.status).label;
+                  const statusBgColor = getStatusInfo(order.status).bgColor;
 
                   // Check if order is urgent (pending for more than 5 minutes)
                   const isUrgent = order.status === 'pending' && 
@@ -602,7 +795,7 @@ export default function StaffDashboard() {
                   return (
                     <div
                       key={order._id}
-                      className={`border rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white group relative ${
+                      className={`border rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 group relative ${statusBgColor} ${
                         isUrgent 
                           ? 'border-red-300 bg-red-50 animate-pulse' 
                           : 'border-gray-200'
@@ -612,7 +805,7 @@ export default function StaffDashboard() {
                       {/* Urgent indicator */}
                       {isUrgent && (
                         <div className="absolute -top-2 -left-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">!</span>
+                          <AlertTriangle size={12} className="text-white" />
                         </div>
                       )}
                       
@@ -661,6 +854,11 @@ export default function StaffDashboard() {
                           <p className="text-xl sm:text-2xl font-bold text-green-600">
                             ₹{order.totalAmount.toFixed(2)}
                           </p>
+                          {order.estimatedReadyTime && (
+                            <p className="text-sm text-orange-600 mt-1">
+                              🕐 Ready by: {order.estimatedReadyTime}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -673,7 +871,7 @@ export default function StaffDashboard() {
                             </h4>
                             <div className="space-y-3">
                               {order.items.map((orderItem, index) => (
-                                <div key={index} className="flex items-center justify-between group-hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+                                <div key={index} className="flex items-center justify-between group-hover:bg-white p-2 rounded-lg transition-colors duration-200">
                                   <div className="flex items-center gap-3">
                                     <img
                                       src={orderItem.item.imageUrl}
@@ -685,54 +883,83 @@ export default function StaffDashboard() {
                                     />
                                     <div>
                                       <p className="font-semibold text-gray-900 text-sm sm:text-base">{orderItem.item.name}</p>
-                                      <p className="text-gray-600 text-xs sm:text-sm">
-                                        ₹{orderItem.item.price} × {orderItem.quantity}
-                                      </p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <p className="text-gray-600 text-xs sm:text-sm">
+                                          ₹{orderItem.item.price} × {orderItem.quantity}
+                                        </p>
+                                        {orderItem.item.category && (
+                                          <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
+                                            {getCategoryIcon(orderItem.item.category)}
+                                            {orderItem.item.category}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                  <p className="font-bold text-gray-900 text-sm sm:text-base bg-gray-100 px-3 py-1 rounded-lg">
+                                  <p className="font-bold text-gray-900 text-sm sm:text-base bg-white px-3 py-1 rounded-lg border">
                                     ₹{(orderItem.item.price * orderItem.quantity).toFixed(2)}
                                   </p>
                                 </div>
                               ))}
                             </div>
+                            
+                            {/* Special Instructions */}
+                            {order.specialInstructions && (
+                              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p className="text-sm font-semibold text-yellow-800">Special Instructions:</p>
+                                <p className="text-yellow-700 text-sm mt-1">{order.specialInstructions}</p>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Status Update Buttons */}
-                          <div className="w-full xl:w-64 flex flex-col gap-2">
+                          {/* Enhanced Status Update Buttons */}
+                          <div className="w-full xl:w-72 flex flex-col gap-2">
                             <p className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Update Status:</p>
-                            {order.status === "pending" && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, "preparing")}
-                                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-4 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
-                              >
-                                🍳 Start Preparing
-                              </button>
-                            )}
-                            {order.status === "preparing" && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, "ready")}
-                                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-4 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
-                              >
-                                📦 Mark as Ready
-                              </button>
-                            )}
-                            {order.status === "ready" && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, "completed")}
-                                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 px-4 rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
-                              >
-                                ✅ Mark as Completed
-                              </button>
-                            )}
-                            {(order.status === "pending" || order.status === "preparing") && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, "cancelled")}
-                                className="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white py-3 px-4 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20 mt-2"
-                              >
-                                ❌ Cancel Order
-                              </button>
-                            )}
+                            <div className="grid grid-cols-2 gap-2">
+                              {order.status === "pending" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, "preparing")}
+                                  className="col-span-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-4 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
+                                >
+                                  🍳 Start Preparing
+                                </button>
+                              )}
+                              {order.status === "preparing" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, "ready")}
+                                  className="col-span-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-4 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
+                                >
+                                  📦 Mark as Ready
+                                </button>
+                              )}
+                              {order.status === "ready" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, "completed")}
+                                  className="col-span-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 px-4 rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
+                                >
+                                  ✅ Mark as Completed
+                                </button>
+                              )}
+                              {(order.status === "pending" || order.status === "preparing") && (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(order._id, "cancelled")}
+                                    className="bg-gradient-to-r from-red-500 to-pink-500 text-white py-2 px-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold border border-white border-opacity-20 text-sm"
+                                  >
+                                    ❌ Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      // Quick prepare action
+                                      handleUpdateOrderStatus(order._id, "preparing");
+                                    }}
+                                    className="bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2 px-3 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold border border-white border-opacity-20 text-sm"
+                                  >
+                                    ⚡ Quick Prep
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>

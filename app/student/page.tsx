@@ -1,8 +1,12 @@
-// app/student/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, CreditCard, Utensils, RefreshCw, GraduationCap, BookOpen, Bell, Wifi, WifiOff } from "lucide-react";
+import { 
+  Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, 
+  CreditCard, Utensils, RefreshCw, GraduationCap, BookOpen, Bell, 
+  Wifi, WifiOff, Search, Filter, Star, MapPin, Phone, MessageCircle,
+  Truck, Smile, Frown, Heart
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -12,6 +16,7 @@ interface OrderItem {
     name: string;
     price: number;
     imageUrl: string;
+    category?: string;
   };
   quantity: number;
 }
@@ -26,6 +31,15 @@ interface Order {
   status: "pending" | "preparing" | "ready" | "completed" | "cancelled";
   createdAt: string;
   updatedAt: string;
+  estimatedReadyTime?: string;
+  preparationTime?: number;
+}
+
+interface UserStats {
+  totalOrders: number;
+  totalSpent: number;
+  favoriteCategory: string;
+  averageRating: number;
 }
 
 export default function StudentDashboard() {
@@ -37,80 +51,103 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<"online" | "offline">("online");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
+  const [userStats, setUserStats] = useState<UserStats>({
+    totalOrders: 0,
+    totalSpent: 0,
+    favoriteCategory: "None",
+    averageRating: 0
+  });
   
   // Refs for interval management
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Initialize audio for notifications
   useEffect(() => {
-    fetchUserData();
-    fetchOrders();
-    setupAutoRefresh();
-    setupConnectionListener();
-
-    return () => {
-      // Cleanup intervals on unmount
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
+    audioRef.current = new Audio('/notification-sound.mp3');
+    audioRef.current.volume = 0.2;
   }, []);
 
-  // Setup auto-refresh based on autoRefresh state
-  useEffect(() => {
-    setupAutoRefresh();
-  }, [autoRefresh]);
-
-  const setupConnectionListener = () => {
-    const handleOnline = () => {
-      setConnectionStatus("online");
-      toast.success("Connection restored - Live updates enabled");
-      setupAutoRefresh();
-    };
-
-    const handleOffline = () => {
-      setConnectionStatus("offline");
-      toast.error("Connection lost - Live updates paused");
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
+  // Enhanced order fetching for students
+  const fetchOrders = async (showToast = true) => {
+    try {
+      setIsRefreshing(true);
+      console.log("🎓 Fetching student orders...");
+      
+      const response = await fetch('/api/orders/student', {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch student orders: ${response.status}`);
       }
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+      
+      const ordersData = await response.json();
+      console.log(`✅ Student orders received: ${ordersData.length} orders`);
+      
+      setOrders(ordersData);
+      lastFetchTimeRef.current = Date.now();
+      
+      // Calculate user stats
+      calculateUserStats(ordersData);
+      
+      if (showToast && !isLoading) {
+        toast.success(`Orders updated! Found ${ordersData.length} orders`);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching student orders:", error);
+      if (showToast) {
+        toast.error("Failed to load orders");
+      }
+      
+      // Retry after 5 seconds if failed
+      setTimeout(() => fetchOrders(false), 5000);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   };
 
-  const setupAutoRefresh = () => {
-    // Clear existing interval
-    if (refreshIntervalRef.current) {
-      clearInterval(refreshIntervalRef.current);
-      refreshIntervalRef.current = null;
-    }
+  const calculateUserStats = (ordersData: Order[]) => {
+    const totalOrders = ordersData.length;
+    const totalSpent = ordersData
+      .filter(order => order.status === "completed")
+      .reduce((sum, order) => sum + order.totalAmount, 0);
+    
+    // Calculate favorite category
+    const categoryCount = ordersData.flatMap(order => 
+      order.items.map(item => item.item.category || 'Uncategorized')
+    ).reduce((acc: {[key: string]: number}, category) => {
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const favoriteCategory = Object.keys(categoryCount).length > 0 
+      ? Object.keys(categoryCount).reduce((a, b) => categoryCount[a] > categoryCount[b] ? a : b)
+      : "None";
 
-    // Only setup auto-refresh if enabled and online
-    if (autoRefresh && connectionStatus === "online") {
-      refreshIntervalRef.current = setInterval(() => {
-        const now = Date.now();
-        // Only refresh if last fetch was more than 2 seconds ago to avoid spam
-        if (now - lastFetchTimeRef.current > 2000) {
-          silentRefresh();
-        }
-      }, 5000); // Refresh every 5 seconds
-    }
+    setUserStats({
+      totalOrders,
+      totalSpent,
+      favoriteCategory,
+      averageRating: 4.5 // Mock data - would come from backend in real app
+    });
   };
 
   const silentRefresh = async () => {
     try {
-      const response = await fetch("/api/orders", {
+      const response = await fetch("/api/orders/student", {
         credentials: "include",
         headers: {
           'Cache-Control': 'no-cache',
-          'X-Silent-Refresh': 'true' // Header to identify silent refreshes
+          'X-Silent-Refresh': 'true'
         }
       });
       
@@ -133,7 +170,6 @@ export default function StudentDashboard() {
     newOrders.forEach(newOrder => {
       const oldOrder = orders.find(order => order._id === newOrder._id);
       if (oldOrder && oldOrder.status !== newOrder.status) {
-        // Status changed - show notification
         showStatusChangeNotification(oldOrder, newOrder);
       }
     });
@@ -149,11 +185,53 @@ export default function StudentDashboard() {
     };
 
     const message = statusMessages[newOrder.status as keyof typeof statusMessages];
-    if (message) {
+    if (message && autoRefresh) {
       toast.success(`Order #${newOrder._id.slice(-8)}: ${message}`, {
-        duration: 4000,
+        duration: 5000,
         icon: '🎯'
       });
+      audioRef.current?.play().catch(() => {});
+    }
+  };
+
+  const setupConnectionListener = () => {
+    const handleOnline = () => {
+      setConnectionStatus("online");
+      toast.success("Connection restored - Live updates enabled");
+      setupAutoRefresh();
+      fetchOrders(false);
+    };
+
+    const handleOffline = () => {
+      setConnectionStatus("offline");
+      toast.error("Connection lost - Live updates paused");
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  };
+
+  const setupAutoRefresh = () => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+
+    if (autoRefresh && connectionStatus === "online") {
+      refreshIntervalRef.current = setInterval(() => {
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current > 2000) {
+          silentRefresh();
+        }
+      }, 5000); // Refresh every 5 seconds
     }
   };
 
@@ -174,43 +252,8 @@ export default function StudentDashboard() {
     }
   };
 
-  const fetchOrders = async (showToast = true) => {
-    try {
-      setIsRefreshing(true);
-      const response = await fetch("/api/orders", {
-        credentials: "include",
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      if (response.ok) {
-        const ordersData = await response.json();
-        console.log("Fetched orders:", ordersData);
-        setOrders(ordersData);
-        lastFetchTimeRef.current = Date.now();
-        
-        if (showToast) {
-          toast.success(`Orders updated! Found ${ordersData.length} orders`);
-        }
-      } else if (response.status === 401) {
-        toast.error("Please login again");
-        router.push("/login");
-      } else {
-        toast.error("Failed to fetch orders");
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      toast.error("Error loading orders");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
-
   const handleManualRefresh = () => {
     fetchOrders(true);
-    // Reset auto-refresh timer
     setupAutoRefresh();
   };
 
@@ -220,7 +263,7 @@ export default function StudentDashboard() {
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    if (!confirm("Are you sure you want to cancel this order?")) return;
+    if (!confirm("Are you sure you want to cancel this order? This action cannot be undone.")) return;
 
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
@@ -232,7 +275,6 @@ export default function StudentDashboard() {
 
       if (response.ok) {
         toast.success("Order cancelled successfully!");
-        // Refresh orders to get updated status
         fetchOrders(false);
       } else {
         const errorData = await response.json();
@@ -241,6 +283,28 @@ export default function StudentDashboard() {
     } catch (error) {
       console.error("Error cancelling order:", error);
       toast.error("Error cancelling order");
+    }
+  };
+
+  const handleReorder = async (order: Order) => {
+    try {
+      const cartItems = order.items.map(item => ({
+        item: {
+          _id: item.item._id,
+          name: item.item.name,
+          price: item.item.price,
+          imageUrl: item.item.imageUrl,
+          category: item.item.category
+        },
+        quantity: item.quantity
+      }));
+
+      localStorage.setItem('canteenCart', JSON.stringify(cartItems));
+      toast.success("Items added to cart! Redirecting to menu...");
+      setTimeout(() => router.push('/'), 1500);
+    } catch (error) {
+      console.error("Error reordering:", error);
+      toast.error("Failed to reorder");
     }
   };
 
@@ -263,17 +327,53 @@ export default function StudentDashboard() {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case "pending":
-        return { icon: Clock, color: "text-yellow-600 bg-yellow-100 border border-yellow-200", label: "Pending" };
+        return { 
+          icon: Clock, 
+          color: "text-yellow-600 bg-yellow-100 border border-yellow-200", 
+          label: "Pending",
+          description: "We've received your order and are preparing it",
+          emoji: "⏳"
+        };
       case "preparing":
-        return { icon: ChefHat, color: "text-blue-600 bg-blue-100 border border-blue-200", label: "Preparing" };
+        return { 
+          icon: ChefHat, 
+          color: "text-blue-600 bg-blue-100 border border-blue-200", 
+          label: "Preparing",
+          description: "Our chefs are cooking your delicious meal",
+          emoji: "👨‍🍳"
+        };
       case "ready":
-        return { icon: Package, color: "text-green-600 bg-green-100 border border-green-200", label: "Ready for Pickup" };
+        return { 
+          icon: Package, 
+          color: "text-green-600 bg-green-100 border border-green-200", 
+          label: "Ready for Pickup",
+          description: "Your order is ready! Come pick it up",
+          emoji: "🎉"
+        };
       case "completed":
-        return { icon: CheckCircle, color: "text-emerald-600 bg-emerald-100 border border-emerald-200", label: "Completed" };
+        return { 
+          icon: CheckCircle, 
+          color: "text-emerald-600 bg-emerald-100 border border-emerald-200", 
+          label: "Completed",
+          description: "Order completed successfully",
+          emoji: "✅"
+        };
       case "cancelled":
-        return { icon: XCircle, color: "text-red-600 bg-red-100 border border-red-200", label: "Cancelled" };
+        return { 
+          icon: XCircle, 
+          color: "text-red-600 bg-red-100 border border-red-200", 
+          label: "Cancelled",
+          description: "This order has been cancelled",
+          emoji: "❌"
+        };
       default:
-        return { icon: Clock, color: "text-gray-600 bg-gray-100 border border-gray-200", label: "Unknown" };
+        return { 
+          icon: Clock, 
+          color: "text-gray-600 bg-gray-100 border border-gray-200", 
+          label: "Unknown",
+          description: "Unknown order status",
+          emoji: "❓"
+        };
     }
   };
 
@@ -299,10 +399,30 @@ export default function StudentDashboard() {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
+  const getEstimatedTime = (order: Order) => {
+    if (order.status === "completed" || order.status === "cancelled") return null;
+    
+    const created = new Date(order.createdAt).getTime();
+    const now = Date.now();
+    const elapsed = (now - created) / (1000 * 60); // minutes
+    
+    if (order.status === "pending") {
+      return `Estimated: ${Math.max(1, 15 - Math.floor(elapsed))}min left`;
+    } else if (order.status === "preparing") {
+      return `Estimated: ${Math.max(1, 10 - Math.floor(elapsed))}min left`;
+    }
+    
+    return null;
+  };
+
   const filteredOrders = orders.filter(order => {
     if (activeTab === "all") return true;
     return order.status === activeTab;
-  });
+  }).filter(order => 
+    order.items.some(item => 
+      item.item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || order._id.toLowerCase().includes(searchTerm.toLowerCase())
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const stats = {
     total: orders.length,
@@ -317,6 +437,23 @@ export default function StudentDashboard() {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     return new Date(order.updatedAt) > tenMinutesAgo;
   });
+
+  useEffect(() => {
+    fetchUserData();
+    fetchOrders();
+    setupAutoRefresh();
+    setupConnectionListener();
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setupAutoRefresh();
+  }, [autoRefresh]);
 
   if (isLoading) {
     return (
@@ -397,6 +534,15 @@ export default function StudentDashboard() {
                 <span>Refresh</span>
               </button>
 
+              {/* Help Button */}
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="flex-1 sm:flex-none bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-3 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
+              >
+                <MessageCircle size={18} />
+                <span>Help</span>
+              </button>
+
               {/* Logout */}
               <button
                 onClick={handleLogout}
@@ -410,14 +556,51 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Help Panel */}
+      {showHelp && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-blue-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Phone className="text-blue-600" size={20} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Contact Support</h3>
+                  <p className="text-gray-600 text-sm mt-1">Call: +1-555-CANTEEN</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <MapPin className="text-green-600" size={20} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Pickup Location</h3>
+                  <p className="text-gray-600 text-sm mt-1">Main Campus Canteen, Building A</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Clock className="text-purple-600" size={20} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Operating Hours</h3>
+                  <p className="text-gray-600 text-sm mt-1">8:00 AM - 8:00 PM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-2 lg:grid-cols-5 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-xs sm:text-sm font-semibold">Total Orders</p>
-                <p className="text-xl sm:text-3xl font-bold text-indigo-600">{stats.total}</p>
+                <p className="text-xl sm:text-3xl font-bold text-indigo-600">{userStats.totalOrders}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center">
                 <CreditCard className="text-indigo-600" size={20} />
@@ -428,49 +611,60 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Pending</p>
-                <p className="text-xl sm:text-3xl font-bold text-yellow-600">{stats.pending}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-xl flex items-center justify-center">
-                <Clock className="text-yellow-600" size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Preparing</p>
-                <p className="text-xl sm:text-3xl font-bold text-blue-600">{stats.preparing}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-xl flex items-center justify-center">
-                <ChefHat className="text-blue-600" size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Completed</p>
-                <p className="text-xl sm:text-3xl font-bold text-green-600">{stats.completed}</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Total Spent</p>
+                <p className="text-xl sm:text-3xl font-bold text-green-600">₹{userStats.totalSpent.toFixed(2)}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center">
-                <CheckCircle className="text-green-600" size={20} />
+                <Star className="text-green-600" size={20} />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 col-span-2 lg:col-span-1">
+          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Cancelled</p>
-                <p className="text-xl sm:text-3xl font-bold text-red-600">{stats.cancelled}</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Favorite Category</p>
+                <p className="text-xl sm:text-2xl font-bold text-orange-600 capitalize">{userStats.favoriteCategory}</p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-100 to-pink-100 rounded-xl flex items-center justify-center">
-                <XCircle className="text-red-600" size={20} />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl flex items-center justify-center">
+                <Heart className="text-orange-600" size={20} />
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Your Rating</p>
+                <p className="text-xl sm:text-3xl font-bold text-yellow-600">{userStats.averageRating}/5</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-xl flex items-center justify-center">
+                <Star className="text-yellow-600" size={20} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Controls */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search your orders..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+              />
+            </div>
+            <button
+              onClick={() => router.push('/')}
+              className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center font-semibold border border-white border-opacity-20 flex items-center justify-center gap-2"
+            >
+              <Utensils size={18} />
+              Order More Food
+            </button>
           </div>
         </div>
 
@@ -510,15 +704,17 @@ export default function StudentDashboard() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => router.push('/')}
-              className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center font-semibold border border-white border-opacity-20"
-            >
-              🍕 Order More Food
-            </button>
+            <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${
+              autoRefresh 
+                ? 'bg-green-100 text-green-800 border border-green-200' 
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+              <span>{autoRefresh ? 'Live Tracking' : 'Manual Updates'}</span>
+            </div>
           </div>
 
-          {/* Tabs */}
+          {/* Enhanced Tabs */}
           <div className="border-b border-gray-200 bg-gray-50">
             <div className="px-4 sm:px-6 flex space-x-2 sm:space-x-6 overflow-x-auto">
               {[
@@ -556,7 +752,7 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Orders List */}
+          {/* Enhanced Orders List */}
           <div className="p-4 sm:p-6">
             {isRefreshing ? (
               <div className="text-center py-12">
@@ -578,29 +774,43 @@ export default function StudentDashboard() {
                 </p>
                 <button
                   onClick={() => router.push('/')}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold"
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold flex items-center gap-2 mx-auto"
                 >
-                  🍽️ Browse Menu & Order Now
+                  <Utensils size={20} />
+                  Browse Menu & Order Now
                 </button>
               </div>
             ) : (
               <div className="space-y-4 sm:space-y-6">
                 {filteredOrders.map((order) => {
-                  const StatusIcon = getStatusInfo(order.status).icon;
-                  const statusColor = getStatusInfo(order.status).color;
-                  const statusLabel = getStatusInfo(order.status).label;
+                  const statusInfo = getStatusInfo(order.status);
+                  const StatusIcon = statusInfo.icon;
+                  const statusColor = statusInfo.color;
+                  const statusLabel = statusInfo.label;
+                  const statusDescription = statusInfo.description;
+                  const statusIcon = statusInfo.emoji;
+
+                  const estimatedTime = getEstimatedTime(order);
 
                   return (
                     <div
                       key={order._id}
-                      className="border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white group relative"
+                      className="border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white group relative overflow-hidden"
                     >
+                      {/* Status Background */}
+                      <div className={`absolute inset-0 opacity-5 ${
+                        order.status === 'completed' ? 'bg-green-500' :
+                        order.status === 'cancelled' ? 'bg-red-500' :
+                        order.status === 'ready' ? 'bg-emerald-500' :
+                        order.status === 'preparing' ? 'bg-blue-500' : 'bg-yellow-500'
+                      }`}></div>
+                      
                       {/* Live indicator for active orders */}
                       {(order.status === 'pending' || order.status === 'preparing') && autoRefresh && (
                         <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
                       )}
                       
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-start mb-4 gap-3">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-start mb-4 gap-3 relative z-10">
                         <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
                             <span className="text-base sm:text-lg font-bold text-gray-900 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
@@ -610,8 +820,13 @@ export default function StudentDashboard() {
                               <StatusIcon size={14} />
                               {statusLabel}
                             </span>
+                            {estimatedTime && (
+                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold border border-orange-200">
+                                ⏰ {estimatedTime}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-2">
                             <Clock size={12} />
                             <span>Placed: {formatDate(order.createdAt)}</span>
                             {order.updatedAt !== order.createdAt && (
@@ -621,8 +836,12 @@ export default function StudentDashboard() {
                               </>
                             )}
                           </div>
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <span className="text-lg">{statusIcon}</span>
+                            {statusDescription}
+                          </p>
                         </div>
-                        <div className="w-full sm:w-auto text-left sm:text-right">
+                        <div className="w-full sm:w-auto text-left sm:text-right relative z-10">
                           <p className="text-xl sm:text-2xl font-bold text-green-600">
                             ₹{order.totalAmount.toFixed(2)}
                           </p>
@@ -635,10 +854,19 @@ export default function StudentDashboard() {
                               Cancel Order
                             </button>
                           )}
+                          {order.status === "completed" && (
+                            <button
+                              onClick={() => handleReorder(order)}
+                              className="mt-2 text-indigo-600 hover:text-indigo-700 text-xs sm:text-sm font-medium transition-colors duration-300 flex items-center gap-1 group"
+                            >
+                              <RefreshCw size={14} />
+                              Reorder
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      <div className="border-t border-gray-100 pt-4">
+                      <div className="border-t border-gray-100 pt-4 relative z-10">
                         <h4 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base flex items-center gap-2">
                           <Utensils size={16} />
                           Order Items:
@@ -654,9 +882,16 @@ export default function StudentDashboard() {
                                 />
                                 <div>
                                   <p className="font-semibold text-gray-900 text-sm sm:text-base">{orderItem.item.name}</p>
-                                  <p className="text-gray-600 text-xs sm:text-sm">
-                                    ₹{orderItem.item.price} × {orderItem.quantity}
-                                  </p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-gray-600 text-xs sm:text-sm">
+                                      ₹{orderItem.item.price} × {orderItem.quantity}
+                                    </p>
+                                    {orderItem.item.category && (
+                                      <span className="px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
+                                        {orderItem.item.category}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <p className="font-bold text-gray-900 text-sm sm:text-base bg-gray-100 px-3 py-1 rounded-lg">
@@ -664,6 +899,46 @@ export default function StudentDashboard() {
                               </p>
                             </div>
                           ))}
+                        </div>
+
+                        {/* Order Actions */}
+                        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+                          {order.status === "ready" && (
+                            <button
+                              onClick={() => toast.success("We've notified the staff you're on your way!")}
+                              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                            >
+                              <Truck size={14} />
+                              On My Way!
+                            </button>
+                          )}
+                          {order.status === "completed" && (
+                            <>
+                              <button
+                                onClick={() => toast.success("Thanks for your feedback!")}
+                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                              >
+                                <Smile size={14} />
+                                Rate Order
+                              </button>
+                              <button
+                                onClick={() => handleReorder(order)}
+                                className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                              >
+                                <RefreshCw size={14} />
+                                Order Again
+                              </button>
+                            </>
+                          )}
+                          {order.status === "cancelled" && (
+                            <button
+                              onClick={() => router.push('/')}
+                              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                            >
+                              <Utensils size={14} />
+                              Try Again
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -676,4 +951,4 @@ export default function StudentDashboard() {
       </div>
     </div>
   );
-}
+} 

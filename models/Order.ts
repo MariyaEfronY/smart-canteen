@@ -1,4 +1,4 @@
-// models/Order.ts - UPDATED
+// models/Order.ts - FIXED VERSION
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IOrderItem {
@@ -11,35 +11,70 @@ export interface IOrderItem {
 export interface IOrder extends Document {
   userId: mongoose.Schema.Types.ObjectId;
   userName: string;
-  role: "student" | "staff";
+  role: "student" | "staff"; // ✅ Only student and staff can order
   items: IOrderItem[];
   totalAmount: number;
   status: "pending" | "preparing" | "ready" | "completed" | "cancelled";
   orderNumber: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const OrderSchema = new Schema<IOrder>(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    userName: { type: String, required: true },
-    role: { type: String, enum: ["student", "staff"], required: true },
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true 
+    },
+    userName: { 
+      type: String, 
+      required: true 
+    },
+    role: { 
+      type: String, 
+      enum: ["student", "staff"],
+      required: true 
+    },
     items: [
       {
-        item: { type: mongoose.Schema.Types.ObjectId, ref: "Item", required: true },
-        quantity: { type: Number, required: true, min: 1 },
-        price: { type: Number, required: true },
-        name: { type: String, required: true }
+        item: { 
+          type: mongoose.Schema.Types.ObjectId, 
+          ref: "Item", 
+          required: true 
+        },
+        quantity: { 
+          type: Number, 
+          required: true, 
+          min: 1 
+        },
+        price: { 
+          type: Number, 
+          required: true 
+        },
+        name: { 
+          type: String, 
+          required: true 
+        }
       },
     ],
-    totalAmount: { type: Number, required: true },
+    totalAmount: { 
+      type: Number, 
+      required: true 
+    },
     status: {
       type: String,
       enum: ["pending", "preparing", "ready", "completed", "cancelled"],
       default: "pending",
     },
-    orderNumber: { type: String, unique: true }
+    orderNumber: { 
+      type: String, 
+      unique: true 
+    }
   },
-  { timestamps: true }
+  { 
+    timestamps: true 
+  }
 );
 
 // Generate order number before saving
@@ -54,7 +89,6 @@ OrderSchema.pre('save', async function(next) {
       }
       this.orderNumber = `ORD${nextNumber.toString().padStart(6, '0')}`;
     } catch (error) {
-      // Fallback to timestamp-based order number
       this.orderNumber = `ORD${Date.now()}`;
     }
   }
