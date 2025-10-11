@@ -813,7 +813,7 @@ export default function StudentDashboard() {
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-start mb-4 gap-3 relative z-10">
                         <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                            <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                            <span className="text-base sm:text-lg font-bold text-gray-900 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                               Order #{order._id.slice(-8).toUpperCase()}
                             </span>
                             <span className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold ${statusColor} flex items-center gap-1 w-fit border`}>
