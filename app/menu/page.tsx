@@ -438,33 +438,36 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* Enhanced Mobile Menu Overlay */}
-        <div className={`lg:hidden fixed inset-0 z-50 transition-all duration-500 ${
-          isMenuOpen 
-            ? "opacity-100 pointer-events-auto" 
-            : "opacity-0 pointer-events-none"
-        }`}>
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/95 to-emerald-600/95 backdrop-blur-2xl">
-            <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-white/20">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                    <span className="text-white text-xl">🍔</span>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-bold text-white block">Smart Canteen</span>
-                    <span className="text-white/80 text-sm">Delicious & Fast</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsMenuOpen(false)}
-                  className="p-3 rounded-2xl bg-white/20 hover:bg-white/30 transition-colors duration-200 backdrop-blur-sm"
-                  aria-label="Close menu"
-                >
-                  <X className="w-6 h-6 text-white" />
-                </button>
-              </div>
+{/* Enhanced Mobile Menu Overlay */}
+<div className={`lg:hidden fixed inset-0 z-50 transition-all duration-500 ${
+  isMenuOpen 
+    ? "opacity-100 pointer-events-auto translate-x-0" 
+    : "opacity-0 pointer-events-none translate-x-full"
+}`}>
+  <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-emerald-700">
+    {/* Background Pattern for Better Visual */}
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.3),rgba(255,255,255,0))]"></div>
+    
+    <div className="flex flex-col h-full relative z-10">
+      {/* Header */}
+      <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-white/20 bg-green-700/80 backdrop-blur-sm">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shadow-lg">
+            <span className="text-white text-xl">🍔</span>
+          </div>
+          <div>
+            <span className="text-2xl font-bold text-white block">Smart Canteen</span>
+            <span className="text-white/90 text-sm">Delicious & Fast</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsMenuOpen(false)}
+          className="p-3 rounded-2xl bg-white/20 hover:bg-white/30 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110"
+          aria-label="Close menu"
+        >
+          <X className="w-6 h-6 text-white" />
+        </button>
+      </div>
 
               {/* Navigation Links */}
               <div className="flex-1 p-6 space-y-3 overflow-y-auto">
