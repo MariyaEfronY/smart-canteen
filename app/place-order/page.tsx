@@ -5,7 +5,6 @@ import { useEffect, useState, useRef, JSX } from "react";
 import { useRouter } from "next/navigation";
 import { 
   CheckCircle, 
-  ShoppingCart, 
   Loader, 
   ArrowLeft, 
   AlertCircle, 
