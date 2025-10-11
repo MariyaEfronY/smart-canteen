@@ -5,7 +5,7 @@ import {
   Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, 
   CreditCard, Utensils, RefreshCw, GraduationCap, BookOpen, Bell, 
   Wifi, WifiOff, Search, Filter, Star, MapPin, Phone, MessageCircle,
-  Truck, Smile, Frown, Heart
+  Truck, Smile, Frown, Heart, BarChart3, Users, Shield
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -48,7 +48,7 @@ export default function StudentDashboard() {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("pending");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<"online" | "offline">("online");
   const [searchTerm, setSearchTerm] = useState("");
@@ -332,7 +332,8 @@ export default function StudentDashboard() {
           color: "text-yellow-600 bg-yellow-100 border border-yellow-200", 
           label: "Pending",
           description: "We've received your order and are preparing it",
-          emoji: "⏳"
+          emoji: "⏳",
+          bgColor: "bg-yellow-50"
         };
       case "preparing":
         return { 
@@ -340,7 +341,8 @@ export default function StudentDashboard() {
           color: "text-blue-600 bg-blue-100 border border-blue-200", 
           label: "Preparing",
           description: "Our chefs are cooking your delicious meal",
-          emoji: "👨‍🍳"
+          emoji: "👨‍🍳",
+          bgColor: "bg-blue-50"
         };
       case "ready":
         return { 
@@ -348,7 +350,8 @@ export default function StudentDashboard() {
           color: "text-green-600 bg-green-100 border border-green-200", 
           label: "Ready for Pickup",
           description: "Your order is ready! Come pick it up",
-          emoji: "🎉"
+          emoji: "🎉",
+          bgColor: "bg-green-50"
         };
       case "completed":
         return { 
@@ -356,7 +359,8 @@ export default function StudentDashboard() {
           color: "text-emerald-600 bg-emerald-100 border border-emerald-200", 
           label: "Completed",
           description: "Order completed successfully",
-          emoji: "✅"
+          emoji: "✅",
+          bgColor: "bg-emerald-50"
         };
       case "cancelled":
         return { 
@@ -364,7 +368,8 @@ export default function StudentDashboard() {
           color: "text-red-600 bg-red-100 border border-red-200", 
           label: "Cancelled",
           description: "This order has been cancelled",
-          emoji: "❌"
+          emoji: "❌",
+          bgColor: "bg-red-50"
         };
       default:
         return { 
@@ -372,7 +377,8 @@ export default function StudentDashboard() {
           color: "text-gray-600 bg-gray-100 border border-gray-200", 
           label: "Unknown",
           description: "Unknown order status",
-          emoji: "❓"
+          emoji: "❓",
+          bgColor: "bg-gray-50"
         };
     }
   };
@@ -457,9 +463,9 @@ export default function StudentDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 text-lg">Loading your dashboard...</p>
         </div>
       </div>
@@ -467,7 +473,7 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Toaster position="top-right" />
 
       {/* Connection Status Banner */}
@@ -480,15 +486,15 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-2xl relative overflow-hidden">
+      {/* Header - Redesigned like Staff Page */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-2xl relative overflow-hidden">
         <div className="absolute inset-0 bg-black opacity-5"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-6 gap-4">
             <div className="flex items-center space-x-4">
-              {/* Student Logo */}
+              {/* Student Logo - Redesigned */}
               <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-2xl transform rotate-6 border-2 border-white border-opacity-30">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-2xl transform rotate-3 border-2 border-white border-opacity-30">
                   <GraduationCap size={28} className="text-white" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
@@ -496,25 +502,31 @@ export default function StudentDashboard() {
                 </div>
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white to-yellow-100 bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white to-purple-100 bg-clip-text text-transparent">
                   Student Dashboard
                 </h1>
-                <p className="text-indigo-200 text-sm sm:text-base">
-                  Welcome back, <span className="font-semibold text-white">{user?.name || "Student"}! 👋</span>
+                <p className="text-blue-200 text-sm sm:text-base">
+                  Order Management Portal -{" "}
+                  <span className="font-semibold text-white">
+                    {user?.name || "Student"} 
+                    {user?.dno && ` • ${user.dno}`}
+                  </span>
                 </p>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></div>
-                  <span className="text-xs text-indigo-200">
+                  <span className="text-xs text-blue-200">
                     {autoRefresh ? 'Live updates active' : 'Live updates paused'}
                   </span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            
+            {/* Action Buttons - Responsive Design */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {/* Auto Refresh Toggle */}
               <button
                 onClick={toggleAutoRefresh}
-                className={`flex-1 sm:flex-none px-4 py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20 ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20 ${
                   autoRefresh 
                     ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600' 
                     : 'bg-gradient-to-r from-gray-500 to-gray-600 text-white hover:from-gray-600 hover:to-gray-700'
@@ -528,28 +540,28 @@ export default function StudentDashboard() {
               <button
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
-                className="flex-1 sm:flex-none bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-3 sm:py-3 rounded-xl hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20"
+                className="flex-1 sm:flex-none bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-3 sm:px-4 py-3 rounded-xl hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20"
               >
                 <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
-                <span>Refresh</span>
+                <span className="hidden sm:inline">Refresh</span>
               </button>
 
               {/* Help Button */}
               <button
                 onClick={() => setShowHelp(!showHelp)}
-                className="flex-1 sm:flex-none bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-3 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
+                className="flex-1 sm:flex-none bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 sm:px-4 py-3 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm border border-white border-opacity-20"
               >
                 <MessageCircle size={18} />
-                <span>Help</span>
+                <span className="hidden sm:inline">Help</span>
               </button>
 
               {/* Logout */}
               <button
                 onClick={handleLogout}
-                className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 sm:px-6 sm:py-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
+                className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 sm:px-4 py-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm border border-white border-opacity-20"
               >
                 <LogOut size={18} />
-                <span>Logout</span>
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           </div>
@@ -560,14 +572,14 @@ export default function StudentDashboard() {
       {showHelp && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-blue-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Phone className="text-blue-600" size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Contact Support</h3>
-                  <p className="text-gray-600 text-sm mt-1">Call: +1-555-CANTEEN</p>
+                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Contact Support</h3>
+                  <p className="text-gray-600 text-xs sm:text-sm mt-1">Call: +1-555-CANTEEN</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -575,8 +587,8 @@ export default function StudentDashboard() {
                   <MapPin className="text-green-600" size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Pickup Location</h3>
-                  <p className="text-gray-600 text-sm mt-1">Main Campus Canteen, Building A</p>
+                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Pickup Location</h3>
+                  <p className="text-gray-600 text-xs sm:text-sm mt-1">Main Campus Canteen, Building A</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -584,8 +596,8 @@ export default function StudentDashboard() {
                   <Clock className="text-purple-600" size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Operating Hours</h3>
-                  <p className="text-gray-600 text-sm mt-1">8:00 AM - 8:00 PM</p>
+                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Operating Hours</h3>
+                  <p className="text-gray-600 text-xs sm:text-sm mt-1">8:00 AM - 8:00 PM</p>
                 </div>
               </div>
             </div>
@@ -593,17 +605,17 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Enhanced Stats */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+      {/* Enhanced Stats - Responsive Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-xs sm:text-sm font-semibold">Total Orders</p>
-                <p className="text-xl sm:text-3xl font-bold text-indigo-600">{userStats.totalOrders}</p>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-600">{userStats.totalOrders}</p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center">
-                <CreditCard className="text-indigo-600" size={20} />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-xl flex items-center justify-center">
+                <BarChart3 className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
           </div>
@@ -612,22 +624,10 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-xs sm:text-sm font-semibold">Total Spent</p>
-                <p className="text-xl sm:text-3xl font-bold text-green-600">₹{userStats.totalSpent.toFixed(2)}</p>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600">₹{userStats.totalSpent.toFixed(2)}</p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center">
-                <Star className="text-green-600" size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Favorite Category</p>
-                <p className="text-xl sm:text-2xl font-bold text-orange-600 capitalize">{userStats.favoriteCategory}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl flex items-center justify-center">
-                <Heart className="text-orange-600" size={20} />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center">
+                <CreditCard className="text-green-600 w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
           </div>
@@ -635,113 +635,126 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Your Rating</p>
-                <p className="text-xl sm:text-3xl font-bold text-yellow-600">{userStats.averageRating}/5</p>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Favorite</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-orange-600 capitalize truncate">
+                  {userStats.favoriteCategory}
+                </p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-xl flex items-center justify-center">
-                <Star className="text-yellow-600" size={20} />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-xl flex items-center justify-center">
+                <Heart className="text-orange-600 w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold">Rating</p>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-yellow-600">{userStats.averageRating}/5</p>
+              </div>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-xl flex items-center justify-center">
+                <Star className="text-yellow-600 w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Search and Controls */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        {/* Search and Controls - Responsive */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8 border border-gray-100">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
               <input
                 type="text"
-                placeholder="Search your orders..."
+                placeholder="Search orders by name or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
               />
             </div>
             <button
               onClick={() => router.push('/')}
-              className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center font-semibold border border-white border-opacity-20 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center font-semibold border border-white border-opacity-20 flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <Utensils size={18} />
-              Order More Food
+              <Utensils className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>Order Food</span>
             </button>
           </div>
         </div>
 
         {/* Recent Activity Indicator */}
         {recentActivity.length > 0 && autoRefresh && (
-          <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-4">
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-3 sm:p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <Bell size={16} className="text-white" />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                <Bell className="text-white w-3 h-3 sm:w-4 sm:h-4" />
               </div>
               <div>
-                <p className="text-blue-800 font-semibold text-sm">
+                <p className="text-blue-800 font-semibold text-xs sm:text-sm">
                   Live Updates Active
                 </p>
                 <p className="text-blue-600 text-xs">
-                  {recentActivity.length} orders updated recently • Auto-refresh every 5 seconds
+                  {recentActivity.length} orders updated • Auto-refresh every 5 seconds
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Orders Section */}
+        {/* Orders Section - Enhanced Responsive Design */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
-                <Utensils className="text-white" size={20} />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                <Utensils className="text-white w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">
                   My Orders
                 </h2>
-                <p className="text-gray-600 text-sm">
-                  {autoRefresh ? 'Live tracking enabled • ' : ''}
-                  Last updated: {getTimeAgo(new Date(lastFetchTimeRef.current).toISOString())}
+                <p className="text-gray-600 text-xs sm:text-sm">
+                  {autoRefresh ? 'Live tracking • ' : ''}
+                  Last: {getTimeAgo(new Date(lastFetchTimeRef.current).toISOString())}
                 </p>
               </div>
             </div>
-            <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${
+            <div className={`flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 rounded-lg ${
               autoRefresh 
                 ? 'bg-green-100 text-green-800 border border-green-200' 
                 : 'bg-gray-100 text-gray-600'
             }`}>
               <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-              <span>{autoRefresh ? 'Live Tracking' : 'Manual Updates'}</span>
+              <span>{autoRefresh ? 'Live' : 'Manual'}</span>
             </div>
           </div>
 
-          {/* Enhanced Tabs */}
+          {/* Enhanced Tabs - Mobile Responsive */}
           <div className="border-b border-gray-200 bg-gray-50">
-            <div className="px-4 sm:px-6 flex space-x-2 sm:space-x-6 overflow-x-auto">
+            <div className="px-3 sm:px-6 flex space-x-1 sm:space-x-4 lg:space-x-6 overflow-x-auto">
               {[
-                { id: "all", label: "All Orders", count: stats.total, icon: Package },
                 { id: "pending", label: "Pending", count: stats.pending, icon: Clock },
-                { id: "preparing", label: "Preparing", count: stats.preparing, icon: ChefHat },
-                { id: "ready", label: "Ready", count: orders.filter(o => o.status === "ready").length, icon: CheckCircle },
-                { id: "completed", label: "Completed", count: stats.completed, icon: CheckCircle },
-                { id: "cancelled", label: "Cancelled", count: stats.cancelled, icon: XCircle },
+                { id: "preparing", label: "Prep", count: stats.preparing, icon: ChefHat },
+                { id: "ready", label: "Ready", count: orders.filter(o => o.status === "ready").length, icon: Package },
+                { id: "completed", label: "Done", count: stats.completed, icon: CheckCircle },
+                { id: "cancelled", label: "Cancel", count: stats.cancelled, icon: XCircle },
+                { id: "all", label: "All", count: stats.total, icon: BarChart3 },
               ].map((tab) => {
                 const IconComponent = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-300 flex items-center gap-2 rounded-t-lg ${
+                    className={`py-2 sm:py-3 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-300 flex items-center gap-1 sm:gap-2 rounded-t-lg ${
                       activeTab === tab.id
-                        ? "border-indigo-500 text-indigo-600 bg-white shadow-sm"
+                        ? "border-blue-500 text-blue-600 bg-white shadow-sm"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-white hover:bg-opacity-50"
                     }`}
                   >
-                    <IconComponent size={16} />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.slice(0, 3)}</span>
-                    <span className={`py-0.5 px-2 rounded-full text-xs font-bold ${
+                    <IconComponent className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>{tab.label}</span>
+                    <span className={`py-0.5 px-1 sm:px-2 rounded-full text-xs font-bold ${
                       activeTab === tab.id 
-                        ? "bg-indigo-100 text-indigo-600" 
+                        ? "bg-blue-100 text-blue-600" 
                         : "bg-gray-200 text-gray-700"
                     }`}>
                       {tab.count}
@@ -752,36 +765,36 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Enhanced Orders List */}
-          <div className="p-4 sm:p-6">
+          {/* Enhanced Orders List - Mobile Optimized */}
+          <div className="p-3 sm:p-4 lg:p-6">
             {isRefreshing ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-                <p className="text-gray-500 text-lg">Refreshing orders...</p>
+              <div className="text-center py-8 sm:py-12">
+                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-500 mx-auto mb-3 sm:mb-4"></div>
+                <p className="text-gray-500 text-sm sm:text-lg">Refreshing orders...</p>
               </div>
             ) : filteredOrders.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Package className="text-indigo-500" size={40} />
+              <div className="text-center py-12 sm:py-16">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                  <Package className="text-blue-500 w-6 h-6 sm:w-10 sm:h-10 lg:w-12 lg:h-12" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 mb-2">
                   {activeTab === "all" ? "No orders yet" : `No ${activeTab} orders`}
                 </h3>
-                <p className="text-gray-500 text-base sm:text-lg mb-6 max-w-md mx-auto">
+                <p className="text-gray-500 text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 max-w-md mx-auto px-4">
                   {activeTab === "all" 
                     ? "Start your first order and enjoy delicious meals from our campus kitchen!"
                     : `You don't have any ${activeTab} orders at the moment.`}
                 </p>
                 <button
                   onClick={() => router.push('/')}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-8 py-4 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold flex items-center gap-2 mx-auto"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold flex items-center gap-2 mx-auto text-sm sm:text-base"
                 >
-                  <Utensils size={20} />
+                  <Utensils className="w-4 h-4 sm:w-5 sm:h-5" />
                   Browse Menu & Order Now
                 </button>
               </div>
             ) : (
-              <div className="space-y-4 sm:space-y-6">
+              <div className="space-y-3 sm:space-y-4 lg:space-y-6">
                 {filteredOrders.map((order) => {
                   const statusInfo = getStatusInfo(order.status);
                   const StatusIcon = statusInfo.icon;
@@ -789,13 +802,14 @@ export default function StudentDashboard() {
                   const statusLabel = statusInfo.label;
                   const statusDescription = statusInfo.description;
                   const statusIcon = statusInfo.emoji;
+                  const statusBgColor = statusInfo.bgColor;
 
                   const estimatedTime = getEstimatedTime(order);
 
                   return (
                     <div
                       key={order._id}
-                      className="border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white group relative overflow-hidden"
+                      className={`border rounded-2xl p-3 sm:p-4 lg:p-6 hover:shadow-lg transition-all duration-300 group relative overflow-hidden ${statusBgColor}`}
                     >
                       {/* Status Background */}
                       <div className={`absolute inset-0 opacity-5 ${
@@ -807,108 +821,111 @@ export default function StudentDashboard() {
                       
                       {/* Live indicator for active orders */}
                       {(order.status === 'pending' || order.status === 'preparing') && autoRefresh && (
-                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
+                        <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
                       )}
                       
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-start mb-4 gap-3 relative z-10">
-                        <div className="flex-1">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                            <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                              Order #{order._id.slice(-8).toUpperCase()}
+                      <div className="flex flex-col lg:flex-row justify-between items-start gap-3 sm:gap-4 mb-3 sm:mb-4 relative z-10">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 lg:gap-3 mb-2">
+                            <span className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 truncate">
+                              Order #{order._id.slice(-6).toUpperCase()}
                             </span>
-                            <span className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold ${statusColor} flex items-center gap-1 w-fit border`}>
-                              <StatusIcon size={14} />
+                            <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold ${statusColor} flex items-center gap-1 w-fit border`}>
+                              <StatusIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                               {statusLabel}
                             </span>
                             {estimatedTime && (
-                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold border border-orange-200">
+                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold border border-orange-200 whitespace-nowrap">
                                 ⏰ {estimatedTime}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-2">
-                            <Clock size={12} />
-                            <span>Placed: {formatDate(order.createdAt)}</span>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-gray-600 mb-2">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {formatDate(order.createdAt)}
+                            </span>
                             {order.updatedAt !== order.createdAt && (
-                              <>
-                                <span>•</span>
-                                <span>Updated: {getTimeAgo(order.updatedAt)}</span>
-                              </>
+                              <span className="text-xs text-gray-500">
+                                Updated: {getTimeAgo(order.updatedAt)}
+                              </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500 flex items-center gap-1">
-                            <span className="text-lg">{statusIcon}</span>
+                          <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
+                            <span className="text-sm">{statusIcon}</span>
                             {statusDescription}
                           </p>
                         </div>
-                        <div className="w-full sm:w-auto text-left sm:text-right relative z-10">
-                          <p className="text-xl sm:text-2xl font-bold text-green-600">
+                        <div className="w-full lg:w-auto text-left lg:text-right relative z-10">
+                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">
                             ₹{order.totalAmount.toFixed(2)}
                           </p>
-                          {order.status === "pending" && (
-                            <button
-                              onClick={() => handleCancelOrder(order._id)}
-                              className="mt-2 text-red-600 hover:text-red-700 text-xs sm:text-sm font-medium transition-colors duration-300 flex items-center gap-1 group"
-                            >
-                              <XCircle size={14} />
-                              Cancel Order
-                            </button>
-                          )}
-                          {order.status === "completed" && (
-                            <button
-                              onClick={() => handleReorder(order)}
-                              className="mt-2 text-indigo-600 hover:text-indigo-700 text-xs sm:text-sm font-medium transition-colors duration-300 flex items-center gap-1 group"
-                            >
-                              <RefreshCw size={14} />
-                              Reorder
-                            </button>
-                          )}
+                          <div className="flex gap-2 mt-1 sm:mt-2">
+                            {order.status === "pending" && (
+                              <button
+                                onClick={() => handleCancelOrder(order._id)}
+                                className="text-red-600 hover:text-red-700 text-xs font-medium transition-colors duration-300 flex items-center gap-1 group"
+                              >
+                                <XCircle className="w-3 h-3" />
+                                Cancel
+                              </button>
+                            )}
+                            {order.status === "completed" && (
+                              <button
+                                onClick={() => handleReorder(order)}
+                                className="text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors duration-300 flex items-center gap-1 group"
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                Reorder
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="border-t border-gray-100 pt-4 relative z-10">
-                        <h4 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base flex items-center gap-2">
-                          <Utensils size={16} />
+                      <div className="border-t border-gray-100 pt-3 sm:pt-4 relative z-10">
+                        <h4 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base flex items-center gap-2">
+                          <Utensils className="w-3 h-3 sm:w-4 sm:h-4" />
                           Order Items:
                         </h4>
-                        <div className="space-y-3">
+                        <div className="space-y-2 sm:space-y-3">
                           {order.items.map((orderItem, index) => (
-                            <div key={index} className="flex items-center justify-between group-hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
-                              <div className="flex items-center gap-3">
+                            <div key={index} className="flex items-center justify-between group-hover:bg-white p-2 rounded-lg transition-colors duration-200">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                 <img
                                   src={orderItem.item.imageUrl || "/placeholder-food.jpg"}
                                   alt={orderItem.item.name}
-                                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-gray-200 shadow-sm"
+                                  className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-xl object-cover border border-gray-200 shadow-sm flex-shrink-0"
                                 />
-                                <div>
-                                  <p className="font-semibold text-gray-900 text-sm sm:text-base">{orderItem.item.name}</p>
-                                  <div className="flex items-center gap-2 mt-1">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{orderItem.item.name}</p>
+                                  <div className="flex items-center gap-1 sm:gap-2 mt-1 flex-wrap">
                                     <p className="text-gray-600 text-xs sm:text-sm">
                                       ₹{orderItem.item.price} × {orderItem.quantity}
                                     </p>
                                     {orderItem.item.category && (
-                                      <span className="px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
+                                      <span className="px-1.5 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600 truncate">
                                         {orderItem.item.category}
                                       </span>
                                     )}
                                   </div>
                                 </div>
                               </div>
-                              <p className="font-bold text-gray-900 text-sm sm:text-base bg-gray-100 px-3 py-1 rounded-lg">
+                              <p className="font-bold text-gray-900 text-sm sm:text-base bg-white px-2 py-1 rounded-lg border ml-2 flex-shrink-0">
                                 ₹{(orderItem.item.price * orderItem.quantity).toFixed(2)}
                               </p>
                             </div>
                           ))}
                         </div>
 
-                        {/* Order Actions */}
-                        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+                        {/* Order Actions - Mobile Optimized */}
+                        <div className="flex flex-wrap gap-1 sm:gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-100">
                           {order.status === "ready" && (
                             <button
                               onClick={() => toast.success("We've notified the staff you're on your way!")}
-                              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                              className="px-2 sm:px-3 py-1.5 sm:py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none justify-center"
                             >
-                              <Truck size={14} />
+                              <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                               On My Way!
                             </button>
                           )}
@@ -916,26 +933,26 @@ export default function StudentDashboard() {
                             <>
                               <button
                                 onClick={() => toast.success("Thanks for your feedback!")}
-                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                                className="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none justify-center"
                               >
-                                <Smile size={14} />
-                                Rate Order
+                                <Smile className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                Rate
                               </button>
                               <button
                                 onClick={() => handleReorder(order)}
-                                className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                                className="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none justify-center"
                               >
-                                <RefreshCw size={14} />
-                                Order Again
+                                <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                Reorder
                               </button>
                             </>
                           )}
                           {order.status === "cancelled" && (
                             <button
                               onClick={() => router.push('/')}
-                              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center gap-2"
+                              className="px-2 sm:px-3 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-1 sm:gap-2 flex-1 justify-center"
                             >
-                              <Utensils size={14} />
+                              <Utensils className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                               Try Again
                             </button>
                           )}
@@ -951,4 +968,4 @@ export default function StudentDashboard() {
       </div>
     </div>
   );
-} 
+}
