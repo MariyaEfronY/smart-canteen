@@ -319,33 +319,41 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 ">
       <Toaster position="top-right" />
 
-      {/* Navigation Bar */}
-      <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-        isScrolled 
-          ? "bg-white shadow-lg border-b border-gray-200" 
-          : "bg-white"
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 lg:h-20">
-            {/* Logo */}
-            <Link 
-              href="/" 
-              className="flex items-center space-x-3 group"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <span className="text-white text-lg lg:text-xl">🍔</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Smart Canteen
-                </span>
-                <span className="text-xs text-gray-500 hidden sm:block">Delicious & Fast</span>
-              </div>
-            </Link>
+{/* Navigation Bar */}
+<nav
+  className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-40 
+  transition-all duration-500 rounded-full backdrop-blur-md
+  max-w-7xl mx-auto w-[90%] 
+  ${isScrolled 
+    ? "bg-white/70 shadow-xl border border-gray-200" 
+    : "bg-white/50 shadow-lg border border-gray-100"
+  }`}
+>
+  <div className="px-4 sm:px-6 lg:px-8">
+    <div className="flex justify-between items-center h-16 lg:h-20">
+      
+      {/* Logo */}
+      <Link
+        href="/"
+        className="flex items-center space-x-3 group"
+        onClick={() => setIsMenuOpen(false)}
+      >
+        <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-green-500 to-emerald-500 
+        rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 
+        transition-transform duration-300">
+          <span className="text-white text-lg lg:text-xl">🍔</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r 
+          from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            Smart Canteen
+          </span>
+          <span className="text-xs text-gray-500 hidden sm:block">Delicious & Fast</span>
+        </div>
+      </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-8">
