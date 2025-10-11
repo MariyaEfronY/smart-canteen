@@ -1,7 +1,9 @@
-// lib/auth.ts
-import { NextApiRequest, NextApiResponse } from "next";
+// lib/auth.ts - ENHANCED VERSION
+import { NextApiRequest } from "next";
 import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import cookie from "cookie";
+import User from "@/models/User";
+import { dbConnect } from "./mongoose";
 
 // ✅ force TypeScript to treat env as Secret
 const JWT_SECRET: Secret = (process.env.JWT_SECRET || "supersecret") as Secret;
@@ -13,7 +15,6 @@ export function signToken(payload: Record<string, unknown>): string {
     expiresIn: JWT_EXPIRES_IN,
   });
 }
-
 
 // ---- PARSE ----
 export function getTokenFromReq(req: NextApiRequest): string | null {
@@ -31,8 +32,32 @@ export function verifyToken(token: string): JwtPayload | null {
   }
 }
 
+// ✅ NEW: Verify token with FRESH database role check
+export async function verifyTokenWithFreshRole(token: string): Promise<{ id: string; role: string; name: string; email: string } | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    
+    // Always get fresh user data from database
+    await dbConnect();
+    const user = await User.findById(decoded.id).select("role name email");
+    
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: decoded.id as string,
+      role: user.role, // ✅ Always fresh from database
+      name: user.name,
+      email: user.email
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ---- SET COOKIE ----
-export function setTokenCookie(res: NextApiResponse, token: string): void {
+export function setTokenCookie(res: any, token: string): void {
   const cookieStr = cookie.serialize("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -44,7 +69,7 @@ export function setTokenCookie(res: NextApiResponse, token: string): void {
 }
 
 // ---- CLEAR COOKIE ----
-export function clearTokenCookie(res: NextApiResponse): void {
+export function clearTokenCookie(res: any): void {
   const cookieStr = cookie.serialize("token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
