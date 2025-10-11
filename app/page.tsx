@@ -341,7 +341,7 @@ export default function Home() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Campus Canteen
+                  Smart Canteen
                 </span>
                 <span className="text-xs text-gray-500 hidden sm:block">Delicious & Fast</span>
               </div>
@@ -445,7 +445,7 @@ export default function Home() {
                     <span className="text-white text-xl">🍔</span>
                   </div>
                   <div>
-                    <span className="text-2xl font-bold text-gray-900 block">Campus Canteen</span>
+                    <span className="text-2xl font-bold text-gray-900 block">Smart Canteen</span>
                     <span className="text-gray-500 text-sm">Delicious & Fast</span>
                   </div>
                 </div>
@@ -519,7 +519,7 @@ export default function Home() {
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 md:mb-8 leading-tight">
               Welcome to{" "}
               <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                Campus Canteen
+                Smart Canteen
               </span>{" "}
               🍕
             </h1>
