@@ -1,14 +1,11 @@
-//app/student/page.tsx
-
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { 
   Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, 
   CreditCard, Utensils, RefreshCw, GraduationCap, BookOpen, Bell, 
-  Wifi, WifiOff, Search, Filter, Star, MapPin, Phone, MessageCircle,
-  Truck, Smile, Frown, Heart
+  Wifi, WifiOff, Search, Star, MapPin, Phone, MessageCircle,
+  Truck, Smile, Heart, Download, Eye, EyeOff
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -28,6 +25,11 @@ interface Order {
   _id: string;
   userId: string;
   userName: string;
+  userDetails?: {
+    staffId?: string;
+    studentId?: string;
+    department?: string;
+  };
   role: "student" | "staff";
   items: OrderItem[];
   totalAmount: number;
@@ -55,7 +57,10 @@ export default function StudentDashboard() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<"online" | "offline">("online");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   const [userStats, setUserStats] = useState<UserStats>({
     totalOrders: 0,
     totalSpent: 0,
@@ -63,22 +68,18 @@ export default function StudentDashboard() {
     averageRating: 0
   });
   
-  // Refs for interval management
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize audio for notifications
   useEffect(() => {
     audioRef.current = new Audio('/notification-sound.mp3');
     audioRef.current.volume = 0.2;
   }, []);
 
-  // Enhanced order fetching for students
   const fetchOrders = async (showToast = true) => {
     try {
       setIsRefreshing(true);
-      console.log("🎓 Fetching student orders...");
       
       const response = await fetch('/api/orders/student', {
         credentials: 'include',
@@ -93,24 +94,20 @@ export default function StudentDashboard() {
       }
       
       const ordersData = await response.json();
-      console.log(`✅ Student orders received: ${ordersData.length} orders`);
-      
       setOrders(ordersData);
       lastFetchTimeRef.current = Date.now();
       
-      // Calculate user stats
       calculateUserStats(ordersData);
       
       if (showToast && !isLoading) {
         toast.success(`Orders updated! Found ${ordersData.length} orders`);
       }
     } catch (error) {
-      console.error("❌ Error fetching student orders:", error);
+      console.error("Error fetching student orders:", error);
       if (showToast) {
         toast.error("Failed to load orders");
       }
       
-      // Retry after 5 seconds if failed
       setTimeout(() => fetchOrders(false), 5000);
     } finally {
       setIsLoading(false);
@@ -124,7 +121,6 @@ export default function StudentDashboard() {
       .filter(order => order.status === "completed")
       .reduce((sum, order) => sum + order.totalAmount, 0);
     
-    // Calculate favorite category
     const categoryCount = ordersData.flatMap(order => 
       order.items.map(item => item.item.category || 'Uncategorized')
     ).reduce((acc: {[key: string]: number}, category) => {
@@ -140,7 +136,7 @@ export default function StudentDashboard() {
       totalOrders,
       totalSpent,
       favoriteCategory,
-      averageRating: 4.5 // Mock data - would come from backend in real app
+      averageRating: 4.5
     });
   };
 
@@ -159,7 +155,6 @@ export default function StudentDashboard() {
         setOrders(ordersData);
         lastFetchTimeRef.current = Date.now();
         
-        // Check for status changes and show notifications
         checkForStatusChanges(ordersData);
       }
     } catch (error) {
@@ -234,7 +229,7 @@ export default function StudentDashboard() {
         if (now - lastFetchTimeRef.current > 2000) {
           silentRefresh();
         }
-      }, 5000); // Refresh every 5 seconds
+      }, 5000);
     }
   };
 
@@ -407,7 +402,7 @@ export default function StudentDashboard() {
     
     const created = new Date(order.createdAt).getTime();
     const now = Date.now();
-    const elapsed = (now - created) / (1000 * 60); // minutes
+    const elapsed = (now - created) / (1000 * 60);
     
     if (order.status === "pending") {
       return `Estimated: ${Math.max(1, 15 - Math.floor(elapsed))}min left`;
@@ -418,14 +413,45 @@ export default function StudentDashboard() {
     return null;
   };
 
+  const popularCategories = orders.flatMap(order => 
+    order.items.map(item => item.item.category || 'Uncategorized')
+  ).reduce((acc: {[key: string]: number}, category) => {
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+
   const filteredOrders = orders.filter(order => {
-    if (activeTab === "all") return true;
-    return order.status === activeTab;
-  }).filter(order => 
-    order.items.some(item => 
-      item.item.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || order._id.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (activeTab !== "all" && order.status !== activeTab) return false;
+    
+    if (searchTerm && !order.userName.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !order._id.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !order.userDetails?.studentId?.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+    
+    if (selectedCategory !== "all") {
+      const hasCategoryItem = order.items.some(item => 
+        item.item.category?.toLowerCase() === selectedCategory.toLowerCase()
+      );
+      if (!hasCategoryItem) return false;
+    }
+    
+    return true;
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case "newest":
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case "oldest":
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case "amount":
+        return b.totalAmount - a.totalAmount;
+      case "items":
+        return b.items.reduce((sum, item) => sum + item.quantity, 0) - 
+               a.items.reduce((sum, item) => sum + item.quantity, 0);
+      default:
+        return 0;
+    }
+  });
 
   const stats = {
     total: orders.length,
@@ -435,7 +461,6 @@ export default function StudentDashboard() {
     cancelled: orders.filter(order => order.status === "cancelled").length,
   };
 
-  // Get recent activity (orders updated in last 10 minutes)
   const recentActivity = orders.filter(order => {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     return new Date(order.updatedAt) > tenMinutesAgo;
@@ -473,7 +498,6 @@ export default function StudentDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <Toaster position="top-right" />
 
-      {/* Connection Status Banner */}
       {connectionStatus === "offline" && (
         <div className="bg-red-500 text-white py-2 px-4 text-center">
           <div className="flex items-center justify-center gap-2">
@@ -483,13 +507,11 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-2xl relative overflow-hidden rounded-[16px]">
         <div className="absolute inset-0 bg-black opacity-5"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-6 gap-4">
             <div className="flex items-center space-x-4">
-              {/* Student Logo */}
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-2xl transform rotate-6 border-2 border-white border-opacity-30">
                   <GraduationCap size={28} className="text-white" />
@@ -505,6 +527,9 @@ export default function StudentDashboard() {
                 <p className="text-indigo-200 text-sm sm:text-base">
                   Welcome back, <span className="font-semibold text-white">{user?.name || "Student"}! 👋</span>
                 </p>
+                {user?.studentId && (
+                  <p className="text-indigo-200 text-sm">Student ID: {user.studentId}</p>
+                )}
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></div>
                   <span className="text-xs text-indigo-200">
@@ -514,7 +539,6 @@ export default function StudentDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              {/* Auto Refresh Toggle */}
               <button
                 onClick={toggleAutoRefresh}
                 className={`flex-1 sm:flex-none px-4 py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20 ${
@@ -527,7 +551,6 @@ export default function StudentDashboard() {
                 <span className="hidden sm:inline">Auto</span>
               </button>
 
-              {/* Manual Refresh */}
               <button
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
@@ -537,7 +560,6 @@ export default function StudentDashboard() {
                 <span>Refresh</span>
               </button>
 
-              {/* Help Button */}
               <button
                 onClick={() => setShowHelp(!showHelp)}
                 className="flex-1 sm:flex-none bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-3 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
@@ -546,7 +568,6 @@ export default function StudentDashboard() {
                 <span>Help</span>
               </button>
 
-              {/* Logout */}
               <button
                 onClick={handleLogout}
                 className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 sm:px-6 sm:py-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
@@ -559,7 +580,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Help Panel */}
       {showHelp && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-blue-200">
@@ -596,7 +616,6 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Enhanced Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -648,30 +667,81 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Search and Controls */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search your orders..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-              />
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search orders by name, ID, or student ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                />
+              </div>
+
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="all">All Categories</option>
+                {Object.keys(popularCategories).map(category => (
+                  <option key={category} value={category}>
+                    {category} ({popularCategories[category]})
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="amount">Highest Amount</option>
+                <option value="items">Most Items</option>
+              </select>
             </div>
-            <button
-              onClick={() => router.push('/')}
-              className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center font-semibold border border-white border-opacity-20 flex items-center justify-center gap-2"
-            >
-              <Utensils size={18} />
-              Order More Food
-            </button>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors duration-200"
+              >
+                {showCompleted ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showCompleted ? 'Hide Completed' : 'Show Completed'}
+              </button>
+
+              <button
+                onClick={() => {
+                  const dataStr = JSON.stringify(orders, null, 2);
+                  const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(dataBlob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `my-orders-${new Date().toISOString().split('T')[0]}.json`;
+                  link.click();
+                }}
+                className="flex items-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors duration-200"
+              >
+                <Download size={16} />
+                Export
+              </button>
+
+              <button
+                onClick={() => router.push('/')}
+                className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center font-semibold border border-white border-opacity-20 flex items-center justify-center gap-2"
+              >
+                <Utensils size={18} />
+                Order More Food
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Recent Activity Indicator */}
         {recentActivity.length > 0 && autoRefresh && (
           <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-4">
             <div className="flex items-center gap-3">
@@ -690,7 +760,6 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Orders Section */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
@@ -717,14 +786,13 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Enhanced Tabs */}
           <div className="border-b border-gray-200 bg-gray-50">
             <div className="px-4 sm:px-6 flex space-x-2 sm:space-x-6 overflow-x-auto">
               {[
-                { id: "all", label: "All Orders", count: stats.total, icon: Package },
+                { id: "all", label: "All Orders", count: stats.total, icon: CreditCard },
                 { id: "pending", label: "Pending", count: stats.pending, icon: Clock },
                 { id: "preparing", label: "Preparing", count: stats.preparing, icon: ChefHat },
-                { id: "ready", label: "Ready", count: orders.filter(o => o.status === "ready").length, icon: CheckCircle },
+                { id: "ready", label: "Ready", count: orders.filter(o => o.status === "ready").length, icon: Package },
                 { id: "completed", label: "Completed", count: stats.completed, icon: CheckCircle },
                 { id: "cancelled", label: "Cancelled", count: stats.cancelled, icon: XCircle },
               ].map((tab) => {
@@ -755,7 +823,6 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Enhanced Orders List */}
           <div className="p-4 sm:p-6">
             {isRefreshing ? (
               <div className="text-center py-12">
@@ -786,6 +853,8 @@ export default function StudentDashboard() {
             ) : (
               <div className="space-y-4 sm:space-y-6">
                 {filteredOrders.map((order) => {
+                  if (!showCompleted && order.status === "completed") return null;
+
                   const statusInfo = getStatusInfo(order.status);
                   const StatusIcon = statusInfo.icon;
                   const statusColor = statusInfo.color;
@@ -800,7 +869,6 @@ export default function StudentDashboard() {
                       key={order._id}
                       className="border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-white group relative overflow-hidden"
                     >
-                      {/* Status Background */}
                       <div className={`absolute inset-0 opacity-5 ${
                         order.status === 'completed' ? 'bg-green-500' :
                         order.status === 'cancelled' ? 'bg-red-500' :
@@ -808,7 +876,6 @@ export default function StudentDashboard() {
                         order.status === 'preparing' ? 'bg-blue-500' : 'bg-yellow-500'
                       }`}></div>
                       
-                      {/* Live indicator for active orders */}
                       {(order.status === 'pending' || order.status === 'preparing') && autoRefresh && (
                         <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
                       )}
@@ -839,6 +906,12 @@ export default function StudentDashboard() {
                               </>
                             )}
                           </div>
+                          {order.userDetails?.studentId && (
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-1">
+                              <MapPin size={12} />
+                              <span>Student ID: {order.userDetails.studentId}</span>
+                            </div>
+                          )}
                           <p className="text-sm text-gray-500 flex items-center gap-1">
                             <span className="text-lg">{statusIcon}</span>
                             {statusDescription}
@@ -904,7 +977,6 @@ export default function StudentDashboard() {
                           ))}
                         </div>
 
-                        {/* Order Actions */}
                         <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
                           {order.status === "ready" && (
                             <button
@@ -954,4 +1026,4 @@ export default function StudentDashboard() {
       </div>
     </div>
   );
-} 
+}

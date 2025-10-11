@@ -1,13 +1,11 @@
-//app/staff/page.tsx
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { 
   Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, 
   CreditCard, Utensils, Users, BarChart3, RefreshCw, Shield, 
-  Bell, Wifi, WifiOff, Search, Filter, Download, Eye, EyeOff,
-  TrendingUp, AlertTriangle, Coffee, Pizza, Salad
+  Bell, Wifi, WifiOff, Search, Download, Eye, EyeOff,
+  TrendingUp, AlertTriangle, Coffee, Pizza, Salad, MapPin
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -27,6 +25,11 @@ interface Order {
   _id: string;
   userId: string;
   userName: string;
+  userDetails?: {
+    staffId?: string;
+    studentId?: string;
+    department?: string;
+  };
   role: "student" | "staff";
   items: OrderItem[];
   totalAmount: number;
@@ -61,23 +64,19 @@ export default function StaffDashboard() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   
-  // Refs for interval management
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
   const previousOrdersRef = useRef<Order[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize audio for notifications
   useEffect(() => {
     audioRef.current = new Audio('/notification-sound.mp3');
     audioRef.current.volume = 0.3;
   }, []);
 
-  // Enhanced order fetching with retry logic
   const fetchOrders = async (showToast = true) => {
     try {
       setIsRefreshing(true);
-      console.log("👨‍🏫 Fetching staff orders...");
       
       const response = await fetch('/api/orders/staff', {
         credentials: 'include',
@@ -92,8 +91,6 @@ export default function StaffDashboard() {
       }
       
       const ordersData = await response.json();
-      console.log(`✅ Staff orders received: ${ordersData.length} orders`);
-      
       setOrders(ordersData);
       previousOrdersRef.current = ordersData;
       lastFetchTimeRef.current = Date.now();
@@ -102,12 +99,10 @@ export default function StaffDashboard() {
         toast.success(`Orders updated! ${ordersData.length} orders loaded`);
       }
     } catch (error) {
-      console.error("❌ Error fetching staff orders:", error);
+      console.error("Error fetching staff orders:", error);
       if (showToast) {
         toast.error("Failed to load orders");
       }
-      
-      // Retry after 5 seconds if failed
       setTimeout(() => fetchOrders(false), 5000);
     } finally {
       setIsLoading(false);
@@ -129,8 +124,6 @@ export default function StaffDashboard() {
         const ordersData = await response.json();
         setOrders(ordersData);
         lastFetchTimeRef.current = Date.now();
-        
-        // Check for new orders and status changes
         checkForOrderChanges(ordersData);
       }
     } catch (error) {
@@ -144,7 +137,6 @@ export default function StaffDashboard() {
       return;
     }
 
-    // Check for new orders
     const newOrderIds = newOrders.map(order => order._id);
     const previousOrderIds = previousOrdersRef.current.map(order => order._id);
     
@@ -155,12 +147,10 @@ export default function StaffDashboard() {
           duration: 4000,
           icon: '🎯'
         });
-        // Play notification sound
-        audioRef.current?.play().catch(() => {}); // Silent fail if audio fails
+        audioRef.current?.play().catch(() => {});
       });
     }
 
-    // Check for status changes
     newOrders.forEach(newOrder => {
       const oldOrder = previousOrdersRef.current.find(order => order._id === newOrder._id);
       if (oldOrder && oldOrder.status !== newOrder.status) {
@@ -195,7 +185,7 @@ export default function StaffDashboard() {
       setConnectionStatus("online");
       toast.success("Connection restored - Live updates enabled");
       setupAutoRefresh();
-      fetchOrders(false); // Immediate refresh when back online
+      fetchOrders(false);
     };
 
     const handleOffline = () => {
@@ -216,21 +206,18 @@ export default function StaffDashboard() {
   };
 
   const setupAutoRefresh = () => {
-    // Clear existing interval
     if (refreshIntervalRef.current) {
       clearInterval(refreshIntervalRef.current);
       refreshIntervalRef.current = null;
     }
 
-    // Only setup auto-refresh if enabled and online
     if (autoRefresh && connectionStatus === "online") {
       refreshIntervalRef.current = setInterval(() => {
         const now = Date.now();
-        // Only refresh if last fetch was more than 2 seconds ago to avoid spam
         if (now - lastFetchTimeRef.current > 2000) {
           silentRefresh();
         }
-      }, 3000); // Refresh every 3 seconds for staff
+      }, 3000);
     }
   };
 
@@ -251,7 +238,6 @@ export default function StaffDashboard() {
 
   const handleManualRefresh = () => {
     fetchOrders(true);
-    // Reset auto-refresh timer
     setupAutoRefresh();
   };
 
@@ -260,25 +246,26 @@ export default function StaffDashboard() {
     toast.success(!autoRefresh ? "Live updates enabled 🔄" : "Live updates disabled ⏸️");
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm("Are you sure you want to cancel this order? This action cannot be undone.")) return;
+
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: "cancelled" }),
       });
 
       if (response.ok) {
-        toast.success(`Order status updated to ${newStatus}`);
-        // Refresh orders to get updated status
+        toast.success("Order cancelled successfully!");
         fetchOrders(false);
       } else {
         const errorData = await response.json();
-        toast.error(errorData.message || "Failed to update order status");
+        toast.error(errorData.message || "Failed to cancel order");
       }
     } catch (error) {
-      console.error("Error updating order:", error);
-      toast.error("Error updating order status");
+      console.error("Error cancelling order:", error);
+      toast.error("Error cancelling order");
     }
   };
 
@@ -334,18 +321,33 @@ export default function StaffDashboard() {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
-  // Enhanced filtering and sorting
+  const getCategoryIcon = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'pizza': return <Pizza size={16} />;
+      case 'burger': return <Utensils size={16} />;
+      case 'salad': return <Salad size={16} />;
+      case 'beverage': return <Coffee size={16} />;
+      default: return <Utensils size={16} />;
+    }
+  };
+
+  const popularCategories = orders.flatMap(order => 
+    order.items.map(item => item.item.category || 'Uncategorized')
+  ).reduce((acc: {[key: string]: number}, category) => {
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+
   const filteredOrders = orders.filter(order => {
-    // Tab filtering
     if (activeTab !== "all" && order.status !== activeTab) return false;
     
-    // Search filtering
     if (searchTerm && !order.userName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !order._id.toLowerCase().includes(searchTerm.toLowerCase())) {
+        !order._id.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !order.userDetails?.staffId?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !order.userDetails?.studentId?.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     
-    // Category filtering
     if (selectedCategory !== "all") {
       const hasCategoryItem = order.items.some(item => 
         item.item.category?.toLowerCase() === selectedCategory.toLowerCase()
@@ -370,7 +372,6 @@ export default function StaffDashboard() {
     }
   });
 
-  // Enhanced stats calculation
   const stats: DashboardStats = {
     total: orders.length,
     pending: orders.filter(order => order.status === "pending").length,
@@ -384,36 +385,17 @@ export default function StaffDashboard() {
           .reduce((sum, order) => {
             const created = new Date(order.createdAt).getTime();
             const updated = new Date(order.updatedAt).getTime();
-            return sum + (updated - created) / (1000 * 60); // Convert to minutes
+            return sum + (updated - created) / (1000 * 60);
           }, 0) / orders.filter(order => order.status === "completed").length
       : 0
   };
 
-  // Get urgent orders (pending for more than 5 minutes)
   const urgentOrders = orders.filter(order => {
     if (order.status !== 'pending') return false;
     const orderTime = new Date(order.createdAt).getTime();
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     return orderTime < fiveMinutesAgo;
   });
-
-  // Get popular categories
-  const popularCategories = orders.flatMap(order => 
-    order.items.map(item => item.item.category || 'Uncategorized')
-  ).reduce((acc: {[key: string]: number}, category) => {
-    acc[category] = (acc[category] || 0) + 1;
-    return acc;
-  }, {});
-
-  const getCategoryIcon = (category: string) => {
-    switch (category?.toLowerCase()) {
-      case 'pizza': return <Pizza size={16} />;
-      case 'burger': return <Utensils size={16} />;
-      case 'salad': return <Salad size={16} />;
-      case 'beverage': return <Coffee size={16} />;
-      default: return <Utensils size={16} />;
-    }
-  };
 
   useEffect(() => {
     fetchUserData();
@@ -436,7 +418,6 @@ export default function StaffDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
       <Toaster position="top-right" />
 
-      {/* Connection Status Banner */}
       {connectionStatus === "offline" && (
         <div className="bg-red-500 text-white py-2 px-4 text-center">
           <div className="flex items-center justify-center gap-2">
@@ -446,13 +427,11 @@ export default function StaffDashboard() {
         </div>
       )}
 
-      {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-2xl relative overflow-hidden rounded-[16px]">
         <div className="absolute inset-0 bg-black opacity-5"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-6 gap-4">
             <div className="flex items-center space-x-4">
-              {/* Staff Logo */}
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl transform rotate-3 border-2 border-white border-opacity-30">
                   <Shield size={28} className="text-white" />
@@ -468,6 +447,9 @@ export default function StaffDashboard() {
                 <p className="text-purple-200 text-sm sm:text-base">
                   Order Management Portal - <span className="font-semibold text-white">{user?.name || "Staff Member"} 👨‍💼</span>
                 </p>
+                {user?.staffId && (
+                  <p className="text-purple-200 text-sm">Staff ID: {user.staffId}</p>
+                )}
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></div>
                   <span className="text-xs text-purple-200">
@@ -477,7 +459,6 @@ export default function StaffDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              {/* Auto Refresh Toggle */}
               <button
                 onClick={toggleAutoRefresh}
                 className={`flex-1 sm:flex-none px-4 py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white border-opacity-20 ${
@@ -490,7 +471,6 @@ export default function StaffDashboard() {
                 <span className="hidden sm:inline">Auto</span>
               </button>
 
-              {/* Manual Refresh */}
               <button
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
@@ -500,7 +480,6 @@ export default function StaffDashboard() {
                 <span>Refresh</span>
               </button>
 
-              {/* Logout */}
               <button
                 onClick={handleLogout}
                 className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 sm:px-6 sm:py-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
@@ -513,7 +492,6 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Enhanced Stats */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-2 lg:grid-cols-6 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -594,23 +572,20 @@ export default function StaffDashboard() {
           </div>
         </div>
 
-        {/* Enhanced Controls Section */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
           <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
-              {/* Search */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
                   type="text"
-                  placeholder="Search orders by name or ID..."
+                  placeholder="Search orders by name, ID, or user ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                 />
               </div>
 
-              {/* Category Filter */}
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
@@ -624,7 +599,6 @@ export default function StaffDashboard() {
                 ))}
               </select>
 
-              {/* Sort By */}
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -648,7 +622,6 @@ export default function StaffDashboard() {
               
               <button
                 onClick={() => {
-                  // Export functionality
                   const dataStr = JSON.stringify(orders, null, 2);
                   const dataBlob = new Blob([dataStr], { type: 'application/json' });
                   const url = URL.createObjectURL(dataBlob);
@@ -666,7 +639,6 @@ export default function StaffDashboard() {
           </div>
         </div>
 
-        {/* Activity Indicator */}
         {autoRefresh && (
           <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-4">
             <div className="flex items-center justify-between">
@@ -692,7 +664,6 @@ export default function StaffDashboard() {
           </div>
         )}
 
-        {/* Orders Section */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
@@ -719,7 +690,6 @@ export default function StaffDashboard() {
             </div>
           </div>
 
-          {/* Enhanced Tabs */}
           <div className="border-b border-gray-200 bg-gray-50">
             <div className="px-4 sm:px-6 flex space-x-2 sm:space-x-6 overflow-x-auto">
               {[
@@ -759,7 +729,6 @@ export default function StaffDashboard() {
             </div>
           </div>
 
-          {/* Enhanced Orders List */}
           <div className="p-4 sm:p-6">
             {isRefreshing ? (
               <div className="text-center py-12">
@@ -790,7 +759,6 @@ export default function StaffDashboard() {
                   const statusLabel = getStatusInfo(order.status).label;
                   const statusBgColor = getStatusInfo(order.status).bgColor;
 
-                  // Check if order is urgent (pending for more than 5 minutes)
                   const isUrgent = order.status === 'pending' && 
                     (Date.now() - new Date(order.createdAt).getTime()) > 5 * 60 * 1000;
 
@@ -802,16 +770,13 @@ export default function StaffDashboard() {
                           ? 'border-red-300 bg-red-50 animate-pulse' 
                           : 'border-gray-200'
                       }`}
-                      style={{ animationDelay: `${index * 100}ms` }}
                     >
-                      {/* Urgent indicator */}
                       {isUrgent && (
                         <div className="absolute -top-2 -left-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
                           <AlertTriangle size={12} className="text-white" />
                         </div>
                       )}
                       
-                      {/* Live indicator for active orders */}
                       {(order.status === 'pending' || order.status === 'preparing') && autoRefresh && (
                         <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></div>
                       )}
@@ -841,15 +806,22 @@ export default function StaffDashboard() {
                               <Users size={14} />
                               {order.role}
                             </span>
+                            {order.userDetails?.staffId && (
+                              <span className="flex items-center gap-1">
+                                <MapPin size={14} />
+                                Staff ID: {order.userDetails.staffId}
+                              </span>
+                            )}
+                            {order.userDetails?.studentId && (
+                              <span className="flex items-center gap-1">
+                                <MapPin size={14} />
+                                Student ID: {order.userDetails.studentId}
+                              </span>
+                            )}
                             <span className="flex items-center gap-1">
                               <Clock size={14} />
                               {formatDate(order.createdAt)}
                             </span>
-                            {order.updatedAt !== order.createdAt && (
-                              <span className="text-xs text-gray-500">
-                                Updated: {getTimeAgo(order.updatedAt)}
-                              </span>
-                            )}
                           </div>
                         </div>
                         <div className="w-full lg:w-auto text-left lg:text-right">
@@ -905,7 +877,6 @@ export default function StaffDashboard() {
                               ))}
                             </div>
                             
-                            {/* Special Instructions */}
                             {order.specialInstructions && (
                               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                                 <p className="text-sm font-semibold text-yellow-800">Special Instructions:</p>
@@ -914,53 +885,20 @@ export default function StaffDashboard() {
                             )}
                           </div>
 
-                          {/* Enhanced Status Update Buttons */}
                           <div className="w-full xl:w-72 flex flex-col gap-2">
-                            <p className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Update Status:</p>
-                            <div className="grid grid-cols-2 gap-2">
-                              {order.status === "pending" && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(order._id, "preparing")}
-                                  className="col-span-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-4 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
-                                >
-                                  🍳 Start Preparing
-                                </button>
-                              )}
-                              {order.status === "preparing" && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(order._id, "ready")}
-                                  className="col-span-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-4 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
-                                >
-                                  📦 Mark as Ready
-                                </button>
-                              )}
-                              {order.status === "ready" && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(order._id, "completed")}
-                                  className="col-span-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 px-4 rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
-                                >
-                                  ✅ Mark as Completed
-                                </button>
-                              )}
+                            <p className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Order Actions:</p>
+                            <div className="grid grid-cols-1 gap-2">
                               {(order.status === "pending" || order.status === "preparing") && (
-                                <>
-                                  <button
-                                    onClick={() => handleUpdateOrderStatus(order._id, "cancelled")}
-                                    className="bg-gradient-to-r from-red-500 to-pink-500 text-white py-2 px-3 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold border border-white border-opacity-20 text-sm"
-                                  >
-                                    ❌ Cancel
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      // Quick prepare action
-                                      handleUpdateOrderStatus(order._id, "preparing");
-                                    }}
-                                    className="bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2 px-3 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold border border-white border-opacity-20 text-sm"
-                                  >
-                                    ⚡ Quick Prep
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => handleCancelOrder(order._id)}
+                                  className="bg-gradient-to-r from-red-500 to-pink-500 text-white py-3 px-4 rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-semibold border border-white border-opacity-20"
+                                >
+                                  ❌ Cancel Order
+                                </button>
                               )}
+                              <div className="text-xs text-gray-500 text-center mt-2">
+                                Status updates are managed by administrators
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -973,23 +911,6 @@ export default function StaffDashboard() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out forwards;
-          opacity: 0;
-        }
-      `}</style>
     </div>
   );
 }
