@@ -331,31 +331,32 @@ export default function MenuPage() {
       <Toaster position="top-right" />
 
       {/* Enhanced Navigation Bar with Glass Effect */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        isScrolled 
-          ? "bg-white/90 backdrop-blur-xl shadow-lg border-b border-white/20" 
-          : "bg-transparent"
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 lg:h-20">
-            {/* Logo */}
-            <Link 
-              href="/" 
-              className="flex items-center space-x-3 group"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <div className={`w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-all duration-300 ${
-                isScrolled ? "shadow-lg" : "shadow-xl"
-              }`}>
-                <span className="text-white text-xl">🍔</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Campus Canteen
-                </span>
-                <span className="text-xs text-gray-600 hidden sm:block">Delicious & Fast</span>
-              </div>
-            </Link>
+      <nav className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-500 rounded-full w-[90%] max-w-7xl ${
+  isScrolled 
+    ? "bg-white/90 backdrop-blur-xl shadow-lg border border-white/20" 
+    : "bg-white/50 backdrop-blur-md shadow-md border border-white/10"
+}`}>
+  <div className="px-4 sm:px-6 lg:px-8">
+    <div className="flex justify-between items-center h-16 lg:h-20">
+      
+      {/* Logo */}
+      <Link 
+        href="/" 
+        className="flex items-center space-x-3 group"
+        onClick={() => setIsMenuOpen(false)}
+      >
+        <div className={`w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+          isScrolled ? "shadow-lg" : "shadow-xl group-hover:scale-105"
+        }`}>
+          <span className="text-white text-xl">🍔</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            Campus Canteen
+          </span>
+          <span className="text-xs text-gray-600 hidden sm:block">Delicious & Fast</span>
+        </div>
+      </Link>
 
             {/* Desktop Navigation - Centered */}
             <div className="hidden lg:flex items-center space-x-1">
