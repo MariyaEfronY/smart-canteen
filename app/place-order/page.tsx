@@ -430,7 +430,7 @@ export default function PlaceOrder() {
             <div className="absolute -bottom-2 -left-2 w-6 h-6 bg-yellow-400 rounded-full border-4 border-white animate-ping" />
           </div>
           
-          <h1 className="text-4xl font-black text-gray-900 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-black mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Creating Your Order
           </h1>
           
@@ -516,7 +516,7 @@ export default function PlaceOrder() {
             <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-blue-400 rounded-full border-4 border-white animate-pulse" />
           </div>
           
-          <h1 className="text-5xl font-black text-gray-900 mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-black mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
             Order Confirmed!
           </h1>
 
@@ -626,7 +626,7 @@ export default function PlaceOrder() {
             <div className="absolute -top-2 -right-2 w-10 h-10 bg-yellow-400 rounded-full border-4 border-white animate-pulse" />
           </div>
           
-          <h1 className="text-4xl font-black text-gray-900 mb-4 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-black mb-4 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
             Order Issue
           </h1>
           
