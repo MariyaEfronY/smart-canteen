@@ -3,7 +3,7 @@ import { createContext, useContext, useState, ReactNode } from "react";
 
 interface User {
   name: string;
-  role: "student" | "admin";
+  role: "student" | "admin" | "staff";
 }
 
 interface AuthContextType {
