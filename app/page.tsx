@@ -333,192 +333,196 @@ export default function Home() {
   }`}
 >
   <div className="px-4 sm:px-6 lg:px-8">
-    <div className="flex justify-between items-center h-16 lg:h-20">
+    {/* Reduced mobile height from h-16 to h-14 */}
+    <div className="flex justify-between items-center h-14 lg:h-20">
       
-      {/* Logo */}
+      {/* Logo - Smaller on mobile */}
       <Link
         href="/"
-        className="flex items-center space-x-3 group"
+        className="flex items-center space-x-2 group"
         onClick={() => setIsMenuOpen(false)}
       >
-        <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-green-500 to-emerald-500 
+        {/* Smaller logo container on mobile */}
+        <div className="w-8 h-8 lg:w-12 lg:h-12 bg-gradient-to-r from-green-500 to-emerald-500 
         rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 
         transition-transform duration-300">
-          <span className="text-white text-lg lg:text-xl">🍔</span>
+          <span className="text-white text-sm lg:text-xl">🍔</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r 
+          {/* Smaller text on mobile */}
+          <span className="text-lg lg:text-2xl font-bold bg-gradient-to-r 
           from-green-600 to-emerald-600 bg-clip-text text-transparent">
             Smart Canteen
           </span>
-          <span className="text-xs text-gray-500 hidden sm:block">Delicious & Fast</span>
+          {/* Hide tagline on mobile to save space */}
+          <span className="text-xs text-gray-500 hidden lg:block">Delicious & Fast</span>
         </div>
       </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-8">
-              <Link 
-                href="/" 
-                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-              >
-                Home
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-              <Link 
-                href="/menu" 
-                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-              >
-                Menu
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-              <Link 
-                href="/about" 
-                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-              >
-                About
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-              <Link 
-                href="/contact" 
-                className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
-              >
-                Contact
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
+      {/* Desktop Navigation - Unchanged */}
+      <div className="hidden lg:flex items-center space-x-8">
+        <Link 
+          href="/" 
+          className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
+        >
+          Home
+          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
+        </Link>
+        <Link 
+          href="/menu" 
+          className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
+        >
+          Menu
+          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
+        </Link>
+        <Link 
+          href="/about" 
+          className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
+        >
+          About
+          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
+        </Link>
+        <Link 
+          href="/contact" 
+          className="text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 relative group"
+        >
+          Contact
+          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-500 group-hover:w-full transition-all duration-300"></span>
+        </Link>
+      </div>
+
+      {/* Desktop Auth & Cart Buttons - Unchanged */}
+      <div className="hidden lg:flex items-center space-x-4">
+        {/* Cart Button */}
+        <button
+          onClick={() => setShowCart(true)}
+          className="relative p-2 text-gray-700 hover:text-green-600 transition-colors duration-200 group"
+        >
+          <ShoppingCart size={24} className="group-hover:scale-110 transition-transform duration-200" />
+          {getTotalItems() > 0 && (
+            <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+              {getTotalItems()}
+            </span>
+          )}
+        </button>
+
+        {/* Auth Buttons */}
+        <Link 
+          href="/login" 
+          className="px-6 py-2.5 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all duration-200 border border-transparent hover:border-green-200"
+        >
+          Sign In
+        </Link>
+        <Link 
+          href="/signup" 
+          className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+        >
+          Get Started
+        </Link>
+      </div>
+
+      {/* Mobile Menu Button - Smaller */}
+      <button
+        onClick={() => setIsMenuOpen(!isMenuOpen)}
+        className="lg:hidden p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
+        aria-label="Toggle menu"
+      >
+        {/* Smaller hamburger icon */}
+        <div className="w-5 h-5 relative">
+          <span className={`absolute left-0 top-1 w-5 h-0.5 bg-gray-700 transition-all duration-300 ${
+            isMenuOpen ? "rotate-45 top-2 bg-gray-700" : ""
+          }`}></span>
+          <span className={`absolute left-0 top-2 w-5 h-0.5 bg-gray-700 transition-all duration-300 ${
+            isMenuOpen ? "opacity-0" : ""
+          }`}></span>
+          <span className={`absolute left-0 top-3 w-5 h-0.5 bg-gray-700 transition-all duration-300 ${
+            isMenuOpen ? "-rotate-45 top-2 bg-gray-700" : ""
+          }`}></span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  {/* Mobile Menu Overlay - Unchanged */}
+  <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${
+    isMenuOpen 
+      ? "opacity-100 pointer-events-auto" 
+      : "opacity-0 pointer-events-none"
+  }`}>
+    <div className="absolute inset-0 bg-white">
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-gray-200 bg-white">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white text-xl">🍔</span>
             </div>
-
-            {/* Desktop Auth & Cart Buttons */}
-            <div className="hidden lg:flex items-center space-x-4">
-              {/* Cart Button */}
-              <button
-                onClick={() => setShowCart(true)}
-                className="relative p-2 text-gray-700 hover:text-green-600 transition-colors duration-200 group"
-              >
-                <ShoppingCart size={24} className="group-hover:scale-110 transition-transform duration-200" />
-                {getTotalItems() > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-                    {getTotalItems()}
-                  </span>
-                )}
-              </button>
-
-              {/* Auth Buttons */}
-              <Link 
-                href="/login" 
-                className="px-6 py-2.5 text-green-600 font-semibold rounded-lg hover:bg-green-50 transition-all duration-200 border border-transparent hover:border-green-200"
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/signup" 
-                className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-              >
-                Get Started
-              </Link>
+            <div>
+              <span className="text-2xl font-bold text-gray-900 block">Smart Canteen</span>
+              <span className="text-gray-500 text-sm">Delicious & Fast</span>
             </div>
+          </div>
+          <button
+            onClick={() => setIsMenuOpen(false)}
+            className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
+            aria-label="Close menu"
+          >
+            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
-              aria-label="Toggle menu"
+        {/* Navigation Links */}
+        <div className="flex-1 p-6 space-y-3 overflow-y-auto">
+          {[
+            { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
+            { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes" },
+            { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
+          ].map((link) => (
+            <Link 
+              key={link.href}
+              href={link.href} 
+              className="flex items-center space-x-4 p-4 rounded-xl bg-gray-50 hover:bg-green-50 transition-all duration-200 group border border-gray-200 hover:border-green-200 hover:shadow-md"
+              onClick={() => setIsMenuOpen(false)}
             >
-              <div className="w-6 h-6 relative">
-                <span className={`absolute left-0 top-1 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${
-                  isMenuOpen ? "rotate-45 top-3 bg-gray-700" : ""
-                }`}></span>
-                <span className={`absolute left-0 top-3 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${
-                  isMenuOpen ? "opacity-0" : ""
-                }`}></span>
-                <span className={`absolute left-0 top-5 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${
-                  isMenuOpen ? "-rotate-45 top-3 bg-gray-700" : ""
-                }`}></span>
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors duration-200 shadow-sm">
+                <span className="text-xl">{link.icon}</span>
               </div>
-            </button>
-          </div>
+              <div className="flex-1">
+                <span className="font-bold text-gray-900 text-lg block">{link.label}</span>
+                <span className="text-gray-500 text-sm">{link.description}</span>
+              </div>
+              <div className="text-gray-400 group-hover:text-green-500">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+          ))}
         </div>
 
-        {/* Mobile Menu Overlay */}
-        <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${
-          isMenuOpen 
-            ? "opacity-100 pointer-events-auto" 
-            : "opacity-0 pointer-events-none"
-        }`}>
-          <div className="absolute inset-0 bg-white">
-            <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-gray-200 bg-white">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-white text-xl">🍔</span>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-bold text-gray-900 block">Smart Canteen</span>
-                    <span className="text-gray-500 text-sm">Delicious & Fast</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsMenuOpen(false)}
-                  className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
-                  aria-label="Close menu"
-                >
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Navigation Links */}
-              <div className="flex-1 p-6 space-y-3 overflow-y-auto">
-                {[
-                  { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
-                  { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes" },
-                  { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
-                ].map((link) => (
-                  <Link 
-                    key={link.href}
-                    href={link.href} 
-                    className="flex items-center space-x-4 p-4 rounded-xl bg-gray-50 hover:bg-green-50 transition-all duration-200 group border border-gray-200 hover:border-green-200 hover:shadow-md"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors duration-200 shadow-sm">
-                      <span className="text-xl">{link.icon}</span>
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-bold text-gray-900 text-lg block">{link.label}</span>
-                      <span className="text-gray-500 text-sm">{link.description}</span>
-                    </div>
-                    <div className="text-gray-400 group-hover:text-green-500">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Auth Buttons */}
-              <div className="flex-shrink-0 p-6 space-y-4 border-t border-gray-200 bg-gray-50">
-                <Link 
-                  href="/login" 
-                  className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  🔐 Sign In
-                </Link>
-                <Link 
-                  href="/signup" 
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-center block text-lg"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  🚀 Get Started
-                </Link>
-              </div>
-            </div>
-          </div>
+        {/* Auth Buttons */}
+        <div className="flex-shrink-0 p-6 space-y-4 border-t border-gray-200 bg-gray-50">
+          <Link 
+            href="/login" 
+            className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            🔐 Sign In
+          </Link>
+          <Link 
+            href="/signup" 
+            className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-center block text-lg"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            🚀 Get Started
+          </Link>
         </div>
-      </nav>
-
+      </div>
+    </div>
+  </div>
+</nav>
       {/* Main Content */}
       <div className="pt-24 lg:pt-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
