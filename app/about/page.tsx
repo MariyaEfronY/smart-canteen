@@ -32,7 +32,7 @@ export default function About() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Campus Canteen
+                  Smart Canteen
                 </span>
               </div>
             </Link>
@@ -71,10 +71,10 @@ export default function About() {
       <div className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            About Campus Canteen
+            About Smart Canteen
           </h1>
           <p className="text-xl sm:text-2xl mb-8 max-w-3xl mx-auto opacity-90 leading-relaxed">
-            Revolutionizing campus dining with delicious food, seamless ordering, 
+            Revolutionizing Smart dining with delicious food, seamless ordering, 
             and exceptional service for students and staff.
           </p>
           <div className="flex flex-wrap justify-center gap-4 mt-8">
@@ -103,9 +103,9 @@ export default function About() {
                 Our Mission & Vision
               </h2>
               <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                At Campus Canteen, we believe that great food should be accessible, 
-                affordable, and convenient for every member of our campus community. 
-                We're committed to transforming the campus dining experience through 
+                At Smart Canteen, we believe that great food should be accessible, 
+                affordable, and convenient for every member of our Smart community. 
+                We're committed to transforming the Smart dining experience through 
                 technology and quality service.
               </p>
               <div className="space-y-4">
@@ -115,7 +115,7 @@ export default function About() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 text-lg mb-2">Student-First Approach</h3>
-                    <p className="text-gray-600">Designed specifically for campus life with student needs in mind.</p>
+                    <p className="text-gray-600">Designed specifically for Smart life with student needs in mind.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -133,7 +133,7 @@ export default function About() {
             <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
               <img
                 src="/api/placeholder/600/400"
-                alt="Campus Canteen Team"
+                alt="Smart Canteen Team"
                 className="w-full h-64 object-cover rounded-xl mb-6"
               />
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Why Choose Us?</h3>
@@ -176,7 +176,7 @@ export default function About() {
               What Makes Us Different
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              We've built Campus Canteen with features that matter most to our campus community.
+              We've built Smart Canteen with features that matter most to our Smart community.
             </p>
           </div>
 
@@ -205,9 +205,9 @@ export default function About() {
               <div className="w-16 h-16 bg-purple-500 rounded-2xl flex items-center justify-center mb-6">
                 <Truck className="text-white" size={28} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Campus Delivery</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Smart Delivery</h3>
               <p className="text-gray-600 leading-relaxed">
-                Get your food delivered anywhere on campus - dorms, libraries, or classrooms.
+                Get your food delivered anywhere on Smart - dorms, libraries, or classrooms.
               </p>
             </div>
 
@@ -227,7 +227,7 @@ export default function About() {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Community Focus</h3>
               <p className="text-gray-600 leading-relaxed">
-                Built for students, by students. We understand campus life and needs.
+                Built for students, by students. We understand Smart life and needs.
               </p>
             </div>
 
@@ -237,7 +237,7 @@ export default function About() {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Award Winning</h3>
               <p className="text-gray-600 leading-relaxed">
-                Recognized as the best campus food service for three consecutive years.
+                Recognized as the best Smart food service for three consecutive years.
               </p>
             </div>
           </div>
@@ -252,7 +252,7 @@ export default function About() {
               Meet Our Team
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Passionate students and professionals working together to serve our campus community.
+              Passionate students and professionals working together to serve our Smart community.
             </p>
           </div>
 
@@ -316,7 +316,7 @@ export default function About() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 text-lg mb-2">Visit Us</h3>
-                  <p className="text-gray-600">Student Center Building, Room 101<br />Campus Main Road</p>
+                  <p className="text-gray-600">Student Center Building, Room 101<br />Smart Main Road</p>
                 </div>
               </div>
 
@@ -336,7 +336,7 @@ export default function About() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 text-lg mb-2">Email Us</h3>
-                  <p className="text-gray-600">hello@campuscanteen.edu<br />support@campuscanteen.edu</p>
+                  <p className="text-gray-600">hello@Smartcanteen.edu<br />support@Smartcanteen.edu</p>
                 </div>
               </div>
             </div>
@@ -387,10 +387,10 @@ export default function About() {
                 <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
                   <Utensils className="text-white" size={20} />
                 </div>
-                <span className="text-xl font-bold">Campus Canteen</span>
+                <span className="text-xl font-bold">Smart Canteen</span>
               </div>
               <p className="text-gray-400">
-                Serving the campus community with delicious food and exceptional service.
+                Serving the Smart community with delicious food and exceptional service.
               </p>
             </div>
             
@@ -424,7 +424,7 @@ export default function About() {
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center">
             <p className="text-gray-400">
-              © 2024 Campus Canteen. All rights reserved.
+              © 2024 Smart Canteen. All rights reserved.
             </p>
           </div>
         </div>

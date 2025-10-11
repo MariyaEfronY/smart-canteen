@@ -352,7 +352,7 @@ export default function MenuPage() {
         </div>
         <div className="flex flex-col">
           <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-            Campus Canteen
+            Smart Canteen
           </span>
           <span className="text-xs text-gray-600 hidden sm:block">Delicious & Fast</span>
         </div>
@@ -453,7 +453,7 @@ export default function MenuPage() {
                     <span className="text-white text-xl">🍔</span>
                   </div>
                   <div>
-                    <span className="text-2xl font-bold text-white block">Campus Canteen</span>
+                    <span className="text-2xl font-bold text-white block">Smart Canteen</span>
                     <span className="text-white/80 text-sm">Delicious & Fast</span>
                   </div>
                 </div>

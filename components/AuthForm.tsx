@@ -452,7 +452,7 @@ export default function AuthForm({ type }: Props) {
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-lg z-50 border-b border-gray-200/50">
         <div className="flex justify-between items-center p-4">
           <Link href="/" className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 tracking-tight">
-            🍔 CampusCanteen
+            🍔 SmartCanteen
           </Link>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -511,7 +511,7 @@ export default function AuthForm({ type }: Props) {
               <span className="text-3xl text-white">🍕</span>
             </div>
             <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-700 mb-3 tracking-tight">
-              CampusCanteen
+              SmartCanteen
             </h1>
             <h2 className="text-3xl font-extrabold text-gray-800 mb-3 tracking-wide">
               {type === "login" ? "Welcome Back!" : "Join Our Community"}
@@ -677,7 +677,7 @@ export default function AuthForm({ type }: Props) {
             {/* Enhanced Navigation Link */}
             <div className="text-center pt-6 border-t-2 border-gray-200/50">
               <p className="text-gray-600 font-semibold tracking-wide text-base">
-                {type === "login" ? "New to CampusCanteen?" : "Already part of our family?"}{" "}
+                {type === "login" ? "New to SmartCanteen?" : "Already part of our family?"}{" "}
                 <Link
                   href={type === "login" ? "/signup" : "/login"}
                   className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 font-black transition-all duration-300 text-lg tracking-wider"
@@ -691,7 +691,7 @@ export default function AuthForm({ type }: Props) {
           {/* Enhanced Footer */}
           <div className="text-center mt-8">
             <p className="text-gray-500 font-semibold text-sm tracking-wider bg-white/50 backdrop-blur-sm rounded-2xl p-4 border border-gray-200/50">
-              © 2024 <span className="font-black">CampusCanteen</span> • Role-Based Authentication System
+              © 2024 <span className="font-black">SmartCanteen</span> • Role-Based Authentication System
             </p>
           </div>
         </div>

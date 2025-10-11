@@ -924,7 +924,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <span className="text-xl font-bold text-gray-900">Admin Panel</span>
-                <p className="text-gray-500 text-xs">Campus Canteen Management</p>
+                <p className="text-gray-500 text-xs">Smart Canteen Management</p>
               </div>
             </div>
 

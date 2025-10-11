@@ -596,8 +596,8 @@ export default function PlaceOrder() {
               
               <button
                 onClick={() => navigator.share?.({ 
-                  title: 'My Campus Canteen Order', 
-                  text: `I just ordered ${getTotalItems()} items totaling ₹${getTotalPrice().toFixed(2)} from Campus Canteen! 🍕` 
+                  title: 'My Smart Canteen Order', 
+                  text: `I just ordered ${getTotalItems()} items totaling ₹${getTotalPrice().toFixed(2)} from Smart Canteen! 🍕` 
                 })}
                 className="flex-1 bg-white hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-xl font-semibold transition-all duration-200 border border-gray-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
               >

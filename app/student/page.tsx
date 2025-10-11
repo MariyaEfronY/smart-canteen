@@ -599,7 +599,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Pickup Location</h3>
-                  <p className="text-gray-600 text-sm mt-1">Main Campus Canteen, Building A</p>
+                  <p className="text-gray-600 text-sm mt-1">Main Smart Canteen, Building A</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -839,7 +839,7 @@ export default function StudentDashboard() {
                 </h3>
                 <p className="text-gray-500 text-base sm:text-lg mb-6 max-w-md mx-auto">
                   {activeTab === "all" 
-                    ? "Start your first order and enjoy delicious meals from our campus kitchen!"
+                    ? "Start your first order and enjoy delicious meals from our Smart kitchen!"
                     : `You don't have any ${activeTab} orders at the moment.`}
                 </p>
                 <button

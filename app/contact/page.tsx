@@ -43,7 +43,7 @@ export default function ContactPage() {
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-md z-50">
         <div className="flex justify-between items-center p-4">
           <Link href="/" className="text-lg font-bold text-green-600">
-            Campus Canteen
+            Smart Canteen
           </Link>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -109,7 +109,7 @@ export default function ContactPage() {
               Contact Us
             </h1>
             <p className="text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
-              Get in touch with Campus Canteen. We're here to help with any questions about our services, 
+              Get in touch with Smart Canteen. We're here to help with any questions about our services, 
               menu, or catering options.
             </p>
           </div>
@@ -133,28 +133,28 @@ export default function ContactPage() {
                     <div>
                       <p className="text-xs lg:text-sm text-gray-600 mb-1">General Inquiries</p>
                       <a 
-                        href="mailto:info@campuscanteen.com" 
+                        href="mailto:info@Smartcanteen.com" 
                         className="text-green-600 hover:text-green-700 font-medium transition-colors duration-200 text-sm lg:text-base"
                       >
-                        info@campuscanteen.com
+                        info@Smartcanteen.com
                       </a>
                     </div>
                     <div>
                       <p className="text-xs lg:text-sm text-gray-600 mb-1">Support</p>
                       <a 
-                        href="mailto:support@campuscanteen.com" 
+                        href="mailto:support@Smartcanteen.com" 
                         className="text-green-600 hover:text-green-700 font-medium transition-colors duration-200 text-sm lg:text-base"
                       >
-                        support@campuscanteen.com
+                        support@Smartcanteen.com
                       </a>
                     </div>
                     <div>
                       <p className="text-xs lg:text-sm text-gray-600 mb-1">Catering</p>
                       <a 
-                        href="mailto:catering@campuscanteen.com" 
+                        href="mailto:catering@Smartcanteen.com" 
                         className="text-green-600 hover:text-green-700 font-medium transition-colors duration-200 text-sm lg:text-base"
                       >
-                        catering@campuscanteen.com
+                        catering@Smartcanteen.com
                       </a>
                     </div>
                   </div>
@@ -209,11 +209,11 @@ export default function ContactPage() {
                   </h3>
                   <div className="space-y-1 lg:space-y-2">
                     <p className="text-gray-700 text-sm lg:text-base">
-                      Campus Canteen Main Building
+                      Smart Canteen Main Building
                     </p>
                     <p className="text-gray-600 text-xs lg:text-sm">
                       123 University Avenue<br />
-                      Campus City, CC 12345<br />
+                      Smart City, CC 12345<br />
                       United States
                     </p>
                   </div>
@@ -359,7 +359,7 @@ export default function ContactPage() {
                   <h3 className="text-base lg:text-lg font-semibold text-gray-800 mb-3 lg:mb-4">Quick Actions</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
                     <a
-                      href="mailto:info@campuscanteen.com"
+                      href="mailto:info@Smartcanteen.com"
                       className="flex items-center justify-center p-3 lg:p-4 border border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all duration-200 group"
                     >
                       <span className="text-gray-700 group-hover:text-green-600 font-medium text-sm lg:text-base">
@@ -397,7 +397,7 @@ export default function ContactPage() {
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="font-semibold text-gray-800 mb-2 text-sm lg:text-base">Do you offer catering services?</h3>
                   <p className="text-gray-600 text-xs lg:text-sm">
-                    Yes! We provide catering for campus events, meetings, and special occasions. 
+                    Yes! We provide catering for Smart events, meetings, and special occasions. 
                     Contact our catering team for customized menus.
                   </p>
                 </div>

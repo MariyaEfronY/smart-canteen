@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     // Email content
     const mailOptions = {
       from: email,
-      to: 'info@campuscanteen.com', // Your receiving email
-      subject: `Campus Canteen Contact: ${subject}`,
+      to: 'info@Smartcanteen.com', // Your receiving email
+      subject: `Smart Canteen Contact: ${subject}`,
       html: `
         <h2>New Contact Form Submission</h2>
         <p><strong>Name:</strong> ${name}</p>
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         <p><strong>Message:</strong></p>
         <p>${message}</p>
         <hr>
-        <p><em>This message was sent from the Campus Canteen contact form.</em></p>
+        <p><em>This message was sent from the Smart Canteen contact form.</em></p>
       `,
     };
 

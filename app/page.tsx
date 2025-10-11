@@ -532,7 +532,7 @@ export default function Home() {
               🍕
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
-              Discover delicious meals, order with ease, and enjoy campus dining like never before. 
+              Discover delicious meals, order with ease, and enjoy Smart dining like never before. 
               Browse our menu and add items to cart - login when you're ready to order!
             </p>
 
