@@ -558,8 +558,7 @@ const handleAddToCart = useCallback((item: MenuItem) => {
               🍕
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
-              Discover delicious meals, order with ease, and enjoy Smart dining like never before. 
-              Browse our menu and add items to cart - login when you're ready to order!
+              {"Discover delicious meals, order with ease, and enjoy Smart dining like never before. Browse our menu and add items to cart - login when you're ready to order!"}
             </p>
 
             {/* Quick Stats */}
@@ -876,7 +875,7 @@ const handleAddToCart = useCallback((item: MenuItem) => {
                       <div>
                         <p className="text-yellow-800 text-sm font-medium">Login to place order</p>
                         <p className="text-yellow-700 text-xs mt-1">
-                          You'll be redirected to login to complete your order
+                          {"You'll be redirected to login to complete your order"}
                         </p>
                       </div>
                     </div>
