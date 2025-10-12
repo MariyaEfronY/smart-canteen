@@ -211,8 +211,12 @@ export default function AdminDashboard() {
       resetForm();
       fetchItems();
       setActiveSection("menu-items");
-    } catch (error: any) {
-      toast.error(error.message || "Error adding item");
+    } catch (error: unknown) {
+      toast.error(
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message || "Error adding item"
+          : "Error adding item"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -225,7 +229,10 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`/api/items/${id}`, { method: "DELETE" });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to delete item");
+      if (!response.ok) {
+  throw new Error(data?.message ?? "Failed to delete item");
+}
+
 
       toast.success("Item deleted successfully!");
       fetchItems();
@@ -647,7 +654,7 @@ export default function AdminDashboard() {
                               try {
                                 const res = await fetch(`/api/items/${item._id}`, {
                                   method: "PATCH",
-                                  headers: { "Content-Type": "application/json" },
+                                  headers: { "Content-Type": "application/json" } as HeadersInit,
                                   body: JSON.stringify({ status: newStatus }),
                                 });
                                 const data = await res.json();
