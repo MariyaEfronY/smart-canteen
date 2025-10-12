@@ -143,80 +143,102 @@ export default function Home() {
     }
   };
 
-  // ✅ BULLETPROOF: Add to cart with COMPLETE duplicate prevention
   const addToCart = useCallback((item: MenuItem) => {
-    // ✅ FIX 1: Check if we're already processing an add operation
-    if (isAddingToCartRef.current) {
-      console.log("🛑 Blocked duplicate addToCart call - operation in progress");
-      return;
-    }
+  // 🛑 IMMEDIATE duplicate check - most important fix
+  if (isAddingToCartRef.current) {
+    console.log("🛑 BLOCKED: addToCart already in progress");
+    return;
+  }
 
-    // ✅ FIX 2: Check if this is the same item that was just added (within 500ms)
-    const now = Date.now();
-    if (lastActionRef.current && 
-        lastActionRef.current.itemId === item._id && 
-        now - lastActionRef.current.timestamp < 500) {
-      console.log("🛑 Blocked rapid duplicate add for same item:", item.name);
-      return;
-    }
+  const now = Date.now();
+  const lastAction = lastActionRef.current;
+  
+  // 🛑 Block same item within 1000ms (more aggressive)
+  if (lastAction && lastAction.itemId === item._id && (now - lastAction.timestamp) < 1000) {
+    console.log("🛑 BLOCKED: Same item clicked too quickly:", item.name);
+    return;
+  }
 
-    // ✅ FIX 3: Set flags to block duplicate calls
-    isAddingToCartRef.current = true;
-    lastActionRef.current = { itemId: item._id, timestamp: now };
+  // 🛑 Set flag IMMEDIELY
+  isAddingToCartRef.current = true;
+  lastActionRef.current = { itemId: item._id, timestamp: now };
 
-    if (item.status !== "available") {
-      safeToast.error("This item is currently unavailable");
-      isAddingToCartRef.current = false;
-      return;
-    }
+  console.log("✅ START Processing addToCart for:", item.name, "at:", now);
 
-    console.log("🛒 Processing addToCart for:", item.name);
+  if (item.status !== "available") {
+    safeToast.error("This item is currently unavailable");
+    isAddingToCartRef.current = false; // Reset flag
+    return;
+  }
 
-    setCart(prevCart => {
-      // Create a Map from current cart for guaranteed uniqueness
-      const cartMap = new Map();
+  setCart(prevCart => {
+    console.log("🛒 Inside setCart for:", item.name);
+    
+    const cartMap = new Map();
+    prevCart.forEach(cartItem => {
+      cartMap.set(cartItem.item._id, { ...cartItem });
+    });
+    
+    const itemId = item._id;
+    const isNewItem = !cartMap.has(itemId);
+    
+    if (cartMap.has(itemId)) {
+      const existingItem = cartMap.get(itemId);
+      const oldQuantity = existingItem.quantity;
+      const newQuantity = Math.min(oldQuantity + 1, 10);
       
-      // Add all existing items to the map
-      prevCart.forEach(cartItem => {
-        cartMap.set(cartItem.item._id, { ...cartItem });
-      });
-      
-      // Handle the new item
-      const itemId = item._id;
-      
-      if (cartMap.has(itemId)) {
-        // Update existing item
-        const existingItem = cartMap.get(itemId)!;
-        const newQuantity = Math.min(existingItem.quantity + 1, 10);
-        cartMap.set(itemId, {
-          ...existingItem,
-          quantity: newQuantity
-        });
-        safeToast.success(`Updated ${item.name} quantity to ${newQuantity}`);
-      } else {
-        // Add new item
-        cartMap.set(itemId, { 
-          item: {
-            _id: item._id,
-            name: item.name,
-            price: item.price,
-            imageUrl: item.imageUrl,
-            status: item.status
-          }, 
-          quantity: 1 
-        });
-        safeToast.success(`Added ${item.name} to cart!`);
+      // Don't proceed if quantity didn't change
+      if (newQuantity === oldQuantity) {
+        console.log("🛑 Quantity unchanged, max limit reached");
+        safeToast.error(`Maximum quantity (10) reached for ${item.name}`);
+        return prevCart; // Return original cart
       }
       
-      return Array.from(cartMap.values());
-    });
+      cartMap.set(itemId, {
+        ...existingItem,
+        quantity: newQuantity
+      });
+      
+      // Only show toast if it's a meaningful update
+      if (oldQuantity === 1 && newQuantity === 2) {
+        safeToast.success(`Increased ${item.name} quantity to ${newQuantity}`);
+      } else if (newQuantity > oldQuantity) {
+        safeToast.success(`Updated ${item.name} quantity to ${newQuantity}`);
+      }
+    } else {
+      cartMap.set(itemId, { 
+        item: {
+          _id: item._id,
+          name: item.name,
+          price: item.price,
+          imageUrl: item.imageUrl,
+          status: item.status
+        }, 
+        quantity: 1 
+      });
+      safeToast.success(`Added ${item.name} to cart! 🎉`);
+    }
+    
+    const newCart = Array.from(cartMap.values());
+    console.log("🛒 Cart update complete. New cart:", newCart);
+    return newCart;
+  });
 
-    // ✅ FIX 4: Reset flags after state update is complete
-    setTimeout(() => {
-      isAddingToCartRef.current = false;
-    }, 50);
+  // Reset flag after a safe timeout
+  setTimeout(() => {
+    console.log("✅ RESET: isAddingToCartRef set to false");
+    isAddingToCartRef.current = false;
+  }, 300);
 
-  }, []);
+}, []);
+
+const handleAddToCart = useCallback((item: MenuItem) => {
+  return (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart(item);
+  };
+}, [addToCart]);
 
   // ✅ BULLETPROOF: Remove from cart
   const removeFromCart = useCallback((itemId: string) => {
@@ -632,17 +654,17 @@ export default function Home() {
                       </span>
                       {/* ✅ FIXED: Simple onClick without event parameter */}
                       <button
-                        onClick={() => addToCart(item)}
-                        disabled={item.status !== "available"}
-                        className={`px-4 py-2 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 ${
-                          item.status === "available"
-                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        <Plus size={16} />
-                        Add to Cart
-                      </button>
+  onClick={handleAddToCart(item)}  // ✅ Stable function reference
+  disabled={item.status !== "available"}
+  className={`px-4 py-3 rounded-2xl font-semibold transition-all duration-200 flex items-center gap-2 ${
+    item.status === "available"
+      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 shadow-lg hover:shadow-xl"
+      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+  }`}
+>
+  <Plus size={16} />
+  Add to Cart
+</button>
                     </div>
                   </div>
                 </div>
