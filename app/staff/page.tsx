@@ -55,7 +55,13 @@ interface DashboardStats {
 export default function StaffDashboard() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [user, setUser] = useState<any>(null);
+  interface StaffUser {
+    name?: string;
+    staffId?: string;
+    [key: string]: any;
+  }
+  const [user, setUser] = useState<StaffUser | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("pending");
