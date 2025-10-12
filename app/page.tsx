@@ -474,7 +474,7 @@ const handleAddToCart = useCallback((item: MenuItem) => {
     <div className="absolute inset-0 bg-white">
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-gray-200 bg-white">
+        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-white rounded-full">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white text-xl">🍔</span>
@@ -496,7 +496,7 @@ const handleAddToCart = useCallback((item: MenuItem) => {
         </div>
 
         {/* Navigation Links */}
-        <div className="flex-1 p-6 space-y-3 overflow-y-auto">
+        <div className="flex-1 p-4 space-y-6  bg-gray-100">
           {[
             { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
             { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes" },
@@ -525,7 +525,7 @@ const handleAddToCart = useCallback((item: MenuItem) => {
         </div>
 
         {/* Auth Buttons */}
-        <div className="flex-shrink-0 p-6 space-y-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex-shrink-0 p-4 space-y-4 border-t border-gray-200 bg-gray-50">
           <Link 
             href="/login" 
             className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-xl hover:bg-green-50 transition-all duration-200 border border-green-200 text-center block text-lg hover:shadow-md"
