@@ -682,7 +682,7 @@ export default function MenuPage() {
               Ready to Order?
             </h2>
             <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-              Can't find what you're looking for? Contact us for special requests or dietary requirements.
+              {"Can't find what you're looking for? Contact us for special requests or dietary requirements."}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               {cart.length > 0 && (
@@ -948,7 +948,7 @@ function CartSidebar({
                   <div>
                     <p className="text-yellow-800 text-sm font-medium">Login to place order</p>
                     <p className="text-yellow-700 text-xs mt-1">
-                      You'll be redirected to login to complete your order
+                      {"You'll be redirected to login to complete your order"}
                     </p>
                   </div>
                 </div>
