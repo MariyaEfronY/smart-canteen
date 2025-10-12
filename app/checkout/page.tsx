@@ -87,9 +87,13 @@ function CheckoutPageInner() {
       setTimeout(() => {
         window.location.href = "/orders";
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Order error:", error);
-      toast.error(error.message || "Failed to place order");
+      toast.error(
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message || "Failed to place order"
+          : "Failed to place order"
+      );
     } finally {
       setIsLoading(false);
     }
