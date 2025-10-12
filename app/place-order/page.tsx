@@ -33,7 +33,7 @@ interface OrderResponse {
   order: {
     _id: string;
     orderNumber: string;
-    items: any[];
+    items: Record<string, unknown>[];
     totalAmount: number;
     status: string;
     createdAt: string;
@@ -285,7 +285,7 @@ export default function PlaceOrder() {
       
       console.log("🎉 Order completed successfully!");
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Order placement failed:", error);
       
       if (retryCountRef.current < maxRetries) {
@@ -293,7 +293,11 @@ export default function PlaceOrder() {
         console.log(`🔄 Retrying order (${retryCountRef.current}/${maxRetries})...`);
         setTimeout(() => placeOrder(cartItems), 2000);
       } else {
-        handleOrderError(error.message || "Order failed. Please try again.");
+        handleOrderError(
+          typeof error === "object" && error !== null && "message" in error
+            ? String((error as { message?: unknown }).message)
+            : "Order failed. Please try again."
+        );
       }
     } finally {
       setIsPlacingOrder(false);
