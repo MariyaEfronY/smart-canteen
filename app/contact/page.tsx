@@ -109,8 +109,8 @@ export default function ContactPage() {
               Contact Us
             </h1>
             <p className="text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
-              Get in touch with Smart Canteen. We're here to help with any questions about our services, 
-              menu, or catering options.
+              {"Get in touch with Smart Canteen. We&apos;re here to help with any questions about our services, menu, or catering options."}
+
             </p>
           </div>
 
@@ -249,7 +249,7 @@ export default function ContactPage() {
                   <div className="mb-4 lg:mb-6 p-3 lg:p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-green-800 flex items-center text-sm lg:text-base">
                       <span className="mr-2">✅</span>
-                      Thank you for your message! We'll get back to you within 24 hours.
+                      {"Thank you for your message! We'll get back to you within 24 hours."}
                     </p>
                   </div>
                 )}
@@ -390,9 +390,9 @@ export default function ContactPage() {
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="font-semibold text-gray-800 mb-2 text-sm lg:text-base">What are your operating hours?</h3>
                   <p className="text-gray-600 text-xs lg:text-sm">
-                    We're open Monday-Friday from 7:00 AM to 10:00 PM, Saturday from 8:00 AM to 9:00 PM, 
-                    and Sunday from 9:00 AM to 8:00 PM.
-                  </p>
+  {"We're open Monday-Friday from 7:00 AM to 10:00 PM, Saturday from 8:00 AM to 9:00 PM, and Sunday from 9:00 AM to 8:00 PM."}
+</p>
+
                 </div>
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="font-semibold text-gray-800 mb-2 text-sm lg:text-base">Do you offer catering services?</h3>

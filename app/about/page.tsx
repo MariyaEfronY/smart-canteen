@@ -102,12 +102,10 @@ export default function About() {
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
                 Our Mission & Vision
               </h2>
-              <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                At Smart Canteen, we believe that great food should be accessible, 
-                affordable, and convenient for every member of our Smart community. 
-                We're committed to transforming the Smart dining experience through 
-                technology and quality service.
-              </p>
+             <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+  {"At Smart Canteen, we believe that great food should be accessible, affordable, and convenient for every member of our Smart community. We're committed to transforming the Smart dining experience through technology and quality service."}
+</p>
+
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -176,7 +174,7 @@ export default function About() {
               What Makes Us Different
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              We've built Smart Canteen with features that matter most to our Smart community.
+              {"We've built Smart Canteen with features that matter most to our Smart community."}
             </p>
           </div>
 
@@ -304,7 +302,7 @@ export default function About() {
               Get In Touch
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Have questions or feedback? We'd love to hear from you.
+              {"Have questions or feedback? We'd love to hear from you."}
             </p>
           </div>
 
