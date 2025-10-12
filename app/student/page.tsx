@@ -590,7 +590,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Contact Support</h3>
-                  <p className="text-gray-600 text-sm mt-1">Call: +1-555-CANTEEN</p>
+                  <p className="text-gray-600 text-sm mt-1">Call: +91 8122642246</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -599,7 +599,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Pickup Location</h3>
-                  <p className="text-gray-600 text-sm mt-1">Main Smart Canteen, Building A</p>
+                  <p className="text-gray-600 text-sm mt-1">Open Stage Back Canteen</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -608,7 +608,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Operating Hours</h3>
-                  <p className="text-gray-600 text-sm mt-1">8:00 AM - 8:00 PM</p>
+                  <p className="text-gray-600 text-sm mt-1">8:30 AM - 6:30 PM</p>
                 </div>
               </div>
             </div>
