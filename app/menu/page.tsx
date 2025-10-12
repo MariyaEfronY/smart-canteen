@@ -465,92 +465,69 @@ export default function MenuPage() {
           className="p-3 rounded-2xl bg-white/20 hover:bg-white/30 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110"
           aria-label="Close menu"
         >
-          <X className="w-6 h-6 text-white" />
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
 
-              {/* Navigation Links */}
-              <div className="flex-1 p-6 space-y-3 overflow-y-auto">
-                {[
-                  { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
-                  { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes", active: true },
-                  { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
-                  { href: "/contact", label: "Contact", icon: "📞", description: "Get in touch" },
-                ].map((link) => (
-                  <Link 
-                    key={link.href}
-                    href={link.href} 
-                    className={`flex items-center space-x-4 p-4 rounded-2xl transition-all duration-300 group border backdrop-blur-sm ${
-                      link.active
-                        ? "bg-white/30 border-white/40"
-                        : "bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/30"
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-200 ${
-                      link.active ? "bg-white/30" : "bg-white/20 group-hover:bg-white/30"
-                    }`}>
-                      <span className="text-xl">{link.icon}</span>
-                    </div>
-                    <div className="flex-1">
-                      <span className="font-bold text-white text-lg block">{link.label}</span>
-                      <span className="text-white/70 text-sm">{link.description}</span>
-                    </div>
-                    <div className="text-white/60 group-hover:text-white">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Cart & Auth Buttons */}
-              <div className="flex-shrink-0 p-6 space-y-4 border-t border-white/20 bg-white/10 backdrop-blur-sm">
-                {/* Cart Button */}
-                <button
-                  onClick={() => {
-                    setShowCart(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between p-4 bg-white/20 hover:bg-white/30 rounded-2xl transition-all duration-300 border border-white/20 hover:border-white/30"
-                >
-                  <div className="flex items-center space-x-3">
-                    <ShoppingCart className="text-white" size={24} />
-                    <div className="text-left">
-                      <span className="font-bold text-white text-lg block">Your Cart</span>
-                      <span className="text-white/70 text-sm">
-                        {cart.length} item{cart.length !== 1 ? 's' : ''} • ₹{getTotalPrice().toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                  {getTotalItems() > 0 && (
-                    <span className="bg-white text-green-600 rounded-full h-6 w-6 flex items-center justify-center font-bold text-xs">
-                      {getTotalItems()}
-                    </span>
-                  )}
-                </button>
-
-                {/* Auth Buttons */}
-                <Link 
-                  href="/login" 
-                  className="w-full flex items-center justify-center px-6 py-4 bg-white/20 text-white font-bold rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/20 hover:border-white/30 text-lg"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <LogIn size={20} className="mr-2" />
-                  Sign In
-                </Link>
-                <Link 
-                  href="/signup" 
-                  className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-center block text-lg"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Get Started
-                </Link>
-              </div>
+      {/* Navigation Links */}
+      <div className="flex-1 p-6 space-y-3 overflow-y-auto">
+        {[
+          { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
+          { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes", active: true },
+          { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
+          { href: "/contact", label: "Contact", icon: "📞", description: "Get in touch" },
+        ].map((link) => (
+          <Link 
+            key={link.href}
+            href={link.href} 
+            className={`flex items-center space-x-4 p-4 rounded-2xl transition-all duration-300 group border backdrop-blur-sm ${
+              link.active
+                ? "bg-white/30 border-white/40"
+                : "bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/30"
+            }`}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-200 ${
+              link.active ? "bg-white/30" : "bg-white/20 group-hover:bg-white/30"
+            }`}>
+              <span className="text-xl">{link.icon}</span>
             </div>
-          </div>
-        </div>
+            <div className="flex-1">
+              <span className="font-bold text-white text-lg block">{link.label}</span>
+              <span className="text-white/70 text-sm">{link.description}</span>
+            </div>
+            <div className="text-white/60 group-hover:text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Auth Buttons */}
+      <div className="flex-shrink-0 p-6 space-y-4 border-t border-white/20 bg-white/10 backdrop-blur-sm">
+        <Link 
+          href="/login" 
+          className="w-full flex items-center justify-center px-6 py-4 bg-white/20 text-white font-bold rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/20 hover:border-white/30 text-lg"
+          onClick={() => setIsMenuOpen(false)}
+        >
+          <span className="mr-2">🔐</span>
+          Sign In
+        </Link>
+        <Link 
+          href="/signup" 
+          className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-center block text-lg"
+          onClick={() => setIsMenuOpen(false)}
+        >
+          Get Started
+        </Link>
+      </div>
+    </div>
+  </div>
+</div>
       </nav>
 
       {/* Main Content */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShoppingCart, CheckCircle, ArrowLeft } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
@@ -15,7 +15,17 @@ interface CartItem {
   quantity: number;
 }
 
+// ✅ Main wrapper component with Suspense
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center text-gray-500">Loading checkout...</div>}>
+      <CheckoutPageInner />
+    </Suspense>
+  );
+}
+
+// ✅ Inner component containing your full logic
+function CheckoutPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -23,18 +33,17 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     // Load pending order cart from localStorage
-    const pendingCart = localStorage.getItem('pendingOrderCart');
+    const pendingCart = localStorage.getItem("pendingOrderCart");
     if (pendingCart) {
       setCart(JSON.parse(pendingCart));
     } else {
-      // If no pending cart, redirect to home
       toast.error("No pending order found");
       router.push("/");
     }
   }, [router]);
 
   const getTotalPrice = () => {
-    return cart.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
+    return cart.reduce((total, cartItem) => total + cartItem.item.price * cartItem.quantity, 0);
   };
 
   const getTotalItems = () => {
@@ -50,7 +59,7 @@ export default function CheckoutPage() {
     setIsLoading(true);
     try {
       const orderData = {
-        items: cart.map(item => ({
+        items: cart.map((item) => ({
           itemId: item.item._id,
           quantity: item.quantity,
         })),
@@ -59,25 +68,21 @@ export default function CheckoutPage() {
 
       const response = await fetch("/api/orders", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(orderData),
       });
 
       const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to place order");
-      }
+
+      if (!response.ok) throw new Error(data.message || "Failed to place order");
 
       toast.success("Order placed successfully!");
-      
-      // Clear pending order data
-      localStorage.removeItem('pendingOrderCart');
-      localStorage.removeItem('pendingOrderTotal');
-      
+
+      // Clear local storage
+      localStorage.removeItem("pendingOrderCart");
+      localStorage.removeItem("pendingOrderTotal");
+
       // Redirect to orders page
       setTimeout(() => {
         window.location.href = "/orders";
@@ -90,6 +95,7 @@ export default function CheckoutPage() {
     }
   };
 
+  // ✅ Empty cart state
   if (cart.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -109,10 +115,11 @@ export default function CheckoutPage() {
     );
   }
 
+  // ✅ Checkout Page Layout
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <Toaster position="top-right" />
-      
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -124,7 +131,7 @@ export default function CheckoutPage() {
             Back to Menu
           </button>
           <h1 className="text-3xl font-bold text-gray-900">Complete Your Order</h1>
-          <div className="w-20"></div> {/* Spacer for alignment */}
+          <div className="w-20"></div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -132,10 +139,13 @@ export default function CheckoutPage() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Order Summary</h2>
-              
+
               <div className="space-y-4">
                 {cart.map((cartItem) => (
-                  <div key={cartItem.item._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div
+                    key={cartItem.item._id}
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                  >
                     <div className="flex items-center gap-4">
                       <img
                         src={cartItem.item.imageUrl}
@@ -157,7 +167,7 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              {/* Order Total */}
+              {/* Total */}
               <div className="border-t border-gray-200 mt-6 pt-6">
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total Amount:</span>
@@ -171,7 +181,7 @@ export default function CheckoutPage() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sticky top-8">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Complete Order</h3>
-              
+
               <div className="space-y-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-green-800 text-sm text-center">
