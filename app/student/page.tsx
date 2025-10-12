@@ -50,7 +50,12 @@ interface UserStats {
 export default function StudentDashboard() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [user, setUser] = useState<any>(null);
+interface StudentUser {
+  name?: string;
+  studentId?: string;
+  [key: string]: any;
+}
+const [user, setUser] = useState<StudentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
