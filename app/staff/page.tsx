@@ -5,7 +5,9 @@ import {
   Clock, CheckCircle, XCircle, ChefHat, Package, LogOut, User, 
   CreditCard, Utensils, Users, BarChart3, RefreshCw, Shield, 
   Bell, Wifi, WifiOff, Search, Download, Eye, EyeOff,
-  TrendingUp, AlertTriangle, Coffee, Pizza, Salad, MapPin
+  TrendingUp, AlertTriangle, Coffee, Pizza, Salad, MapPin,
+  MessageCircle,
+  Phone
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -60,6 +62,7 @@ export default function StaffDashboard() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<"online" | "offline">("online");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -479,6 +482,13 @@ export default function StaffDashboard() {
                 <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
                 <span>Refresh</span>
               </button>
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="flex-1 sm:flex-none bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-3 rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base border border-white border-opacity-20"
+              >
+                <MessageCircle size={18} />
+                <span>Help</span>
+              </button>
 
               <button
                 onClick={handleLogout}
@@ -491,6 +501,43 @@ export default function StaffDashboard() {
           </div>
         </div>
       </div>
+
+            {showHelp && (
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div className="bg-white rounded-2xl shadow-lg p-6 border border-blue-200">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Phone className="text-blue-600" size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Contact Support</h3>
+                        <p className="text-gray-600 text-sm mt-1">Call: +91 8122642246</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <MapPin className="text-green-600" size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Pickup Location</h3>
+                        <p className="text-gray-600 text-sm mt-1">Open Stage Back Canteen</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Clock className="text-purple-600" size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Operating Hours</h3>
+                        <p className="text-gray-600 text-sm mt-1">8:30 AM - 6:30 PM</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+      
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-2 lg:grid-cols-6 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
