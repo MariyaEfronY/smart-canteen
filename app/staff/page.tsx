@@ -58,7 +58,7 @@ export default function StaffDashboard() {
   interface StaffUser {
     name?: string;
     staffId?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   }
   const [user, setUser] = useState<StaffUser | null>(null);
 
