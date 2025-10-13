@@ -39,7 +39,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: "Login successful",
       user: { id: user._id, name: user.name, role: user.role },
     });
-  } catch (err: any) {
-    res.status(500).json({ message: "Server error during login", error: err.message });
-  }
+  } catch (err: unknown) {
+  // Narrow unknown to Error type
+  const errorMessage =
+    err instanceof Error ? err.message : "Unknown server error";
+
+  res.status(500).json({
+    message: "Server error during login",
+    error: errorMessage,
+  });
+}
 }
