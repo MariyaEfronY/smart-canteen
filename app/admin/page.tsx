@@ -236,8 +236,12 @@ export default function AdminDashboard() {
 
       toast.success("Item deleted successfully!");
       fetchItems();
-    } catch (error: any) {
-      toast.error(error.message || "Error deleting item");
+    } catch (error: unknown) {
+      toast.error(
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message || "Error deleting item"
+          : "Error deleting item"
+      );
     }
   };
 
@@ -470,7 +474,7 @@ export default function AdminDashboard() {
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-blue-100 text-sm font-medium">Today's Orders</p>
+                    <p className="text-blue-100 text-sm font-medium">{`Today's Orders`}</p>
                     <p className="text-2xl font-bold mt-1">{stats.todayOrders}</p>
                     <p className="text-blue-200 text-xs mt-2">{stats.pendingOrders} pending</p>
                   </div>
@@ -661,8 +665,12 @@ export default function AdminDashboard() {
                                 if (!res.ok) throw new Error(data.message);
                                 toast.success(`Status updated to ${newStatus}`);
                                 fetchItems();
-                              } catch (error: any) {
-                                toast.error(error.message || "Failed to update status");
+                              } catch (error: unknown) {
+                                toast.error(
+                                  typeof error === "object" && error !== null && "message" in error
+                                    ? (error as { message?: string }).message || "Failed to update status"
+                                    : "Failed to update status"
+                                );
                               }
                             }}
                             className={`px-3 py-1.5 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-green-500 transition-all duration-300 transform hover:scale-105 ${
