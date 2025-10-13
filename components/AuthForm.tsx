@@ -34,7 +34,7 @@ export default function AuthForm({ type }: Props) {
     setIsMounted(true);
   }, []);
 
-  const apiRequest = async (url: string, data: any) => {
+  const apiRequest = async (url: string, data: unknown) => {
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -124,7 +124,7 @@ export default function AuthForm({ type }: Props) {
     try {
       const url = type === "login" ? "/api/auth/login" : "/api/auth/signup";
       
-      let requestData: any;
+      let requestData: { [key: string]: any } = {};
 
       // For login, ensure we send the correct identifier based on role
       if (type === "login") {
