@@ -26,10 +26,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .sort({ createdAt: -1 });
 
       return res.status(200).json(orders);
-    } catch (err: any) {
-      console.error("❌ Admin Orders Fetch Error:", err);
-      return res.status(500).json({ message: "Internal server error", error: err.message });
-    }
+    } catch (err: unknown) {
+  console.error("❌ Admin Orders Fetch Error:", err);
+
+  const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+  return res.status(500).json({
+    message: "Internal server error",
+    error: errorMessage,
+  });
+}
+
   }
 
   res.setHeader("Allow", ["GET"]);
