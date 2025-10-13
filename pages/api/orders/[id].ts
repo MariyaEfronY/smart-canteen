@@ -27,9 +27,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       
       return res.status(200).json(order);
-    } catch (error: any) {
-      return res.status(500).json({ message: "Error fetching order", error: error.message });
-    }
+    } catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+  return res.status(500).json({
+    message: "Error fetching order",
+    error: errorMessage,
+  });
+}
+
   }
 
   // ✅ Update order status with enhanced authorization
@@ -90,10 +96,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(403).json({ message: "Not authorized to update this order" });
 
-    } catch (error: any) {
-      console.error("Order update error:", error);
-      return res.status(500).json({ message: "Error updating order", error: error.message });
-    }
+    } catch (error: unknown) {
+  console.error("Order update error:", error);
+
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+  return res.status(500).json({
+    message: "Error updating order",
+    error: errorMessage,
+  });
+}
   }
 
   // ✅ DELETE ORDER (Admin only) - NEW FEATURE
@@ -108,10 +120,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!deletedOrder) return res.status(404).json({ message: "Order not found" });
 
       return res.status(200).json({ message: "Order deleted successfully" });
-    } catch (error: any) {
-      console.error("Order delete error:", error);
-      return res.status(500).json({ message: "Error deleting order", error: error.message });
-    }
+    } catch (error: unknown) {
+  console.error("Order delete error:", error);
+
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+  return res.status(500).json({
+    message: "Error deleting order",
+    error: errorMessage,
+  });
+}
   }
 
   res.setHeader("Allow", ["GET", "PUT", "DELETE"]);
