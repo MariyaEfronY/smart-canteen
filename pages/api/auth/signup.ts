@@ -57,12 +57,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: "Signup successful",
       user: { id: user._id, name: user.name, role: user.role },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
   console.error("Signup error:", err);
+
+  // Narrow unknown to Error type
+  const errorMessage = err instanceof Error ? err.message : "Unknown error";
+  const errorStack = err instanceof Error ? err.stack : undefined;
+
   res.status(500).json({
     message: "Server error during signup",
-    error: err.message,
-    stack: err.stack, // 👈 add this for debugging
+    error: errorMessage,
+    stack: errorStack, // optional, useful for debugging
   });
 }
+
 }
