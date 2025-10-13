@@ -18,6 +18,13 @@ interface AuthFormData {
   phone?: string;
 }
 
+interface ApiResponse {
+  message?: string;
+  user?: {
+    role: string;
+  };
+}
+
 type Props = { type: "login" | "signup" };
 
 export default function AuthForm({ type }: Props) {
@@ -34,7 +41,7 @@ export default function AuthForm({ type }: Props) {
     setIsMounted(true);
   }, []);
 
-  const apiRequest = async (url: string, data: unknown) => {
+  const apiRequest = async (url: string, data: unknown): Promise<ApiResponse> => {
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -43,7 +50,7 @@ export default function AuthForm({ type }: Props) {
       body: JSON.stringify(data),
     });
 
-    const result = await response.json();
+    const result: ApiResponse = await response.json();
     
     if (!response.ok) {
       throw new Error(result.message || "Something went wrong");
@@ -124,7 +131,7 @@ export default function AuthForm({ type }: Props) {
     try {
       const url = type === "login" ? "/api/auth/login" : "/api/auth/signup";
       
-      let requestData: { [key: string]: any } = {};
+      let requestData: Record<string, unknown> = {};
 
       // For login, ensure we send the correct identifier based on role
       if (type === "login") {
@@ -408,9 +415,9 @@ export default function AuthForm({ type }: Props) {
       const redirectData = localStorage.getItem('loginRedirect');
       if (redirectData) {
         try {
-          const { fromOrder } = JSON.parse(redirectData);
-          console.log("🛒 Pending order check:", fromOrder);
-          return fromOrder;
+          const parsedData: { fromOrder?: boolean } = JSON.parse(redirectData);
+          console.log("🛒 Pending order check:", parsedData.fromOrder);
+          return parsedData.fromOrder;
         } catch (error) {
           console.error("❌ Error checking pending order:", error);
           return false;
