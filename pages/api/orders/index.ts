@@ -128,13 +128,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: "Order placed successfully",
         order: populatedOrder,
       });
-    } catch (err: any) {
-      console.error("❌ Order Create Error:", err);
-      return res.status(500).json({ 
-        message: "Internal server error", 
-        error: err.message 
-      });
-    }
+    } catch (err: unknown) {
+  console.error("❌ Order Create Error:", err);
+
+  const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+  return res.status(500).json({
+    message: "Internal server error",
+    error: errorMessage,
+  });
+}
+
   }
 
   // ✅ GET ORDERS - FIXED ROLE-BASED FILTERING
@@ -171,10 +175,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`📊 Found ${orders.length} orders for user ${userId} (role: ${userRole})`);
 
       return res.status(200).json(orders);
-    } catch (err: any) {
-      console.error("❌ Fetch Orders Error:", err);
-      return res.status(500).json({ message: "Internal server error", error: err.message });
-    }
+    } catch (err: unknown) {
+  console.error("❌ Fetch Orders Error:", err);
+
+  // Narrow unknown to Error type before accessing message
+  const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+  return res.status(500).json({
+    message: "Internal server error",
+    error: errorMessage,
+  });
+}
+
   }
 
   res.setHeader("Allow", ["GET", "POST"]);
