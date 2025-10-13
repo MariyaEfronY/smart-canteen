@@ -53,7 +53,7 @@ export default function StudentDashboard() {
 interface StudentUser {
   name?: string;
   studentId?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 const [user, setUser] = useState<StudentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -507,7 +507,7 @@ const [user, setUser] = useState<StudentUser | null>(null);
         <div className="bg-red-500 text-white py-2 px-4 text-center">
           <div className="flex items-center justify-center gap-2">
             <WifiOff size={16} />
-            <span className="text-sm font-medium">You're offline - Live updates paused</span>
+            <span className="text-sm font-medium">{`You're offline - Live updates paused`}</span>
           </div>
         </div>
       )}
