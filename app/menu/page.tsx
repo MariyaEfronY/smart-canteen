@@ -438,90 +438,128 @@ export default function MenuPage() {
           </div>
         </div>
 
-{/* Enhanced Mobile Menu Overlay */}
+{/* Enhanced Mobile Menu Overlay - Fixed Visibility */}
 <div className={`lg:hidden fixed inset-0 z-50 transition-all duration-500 ${
   isMenuOpen 
-    ? "opacity-100 pointer-events-auto translate-x-0" 
-    : "opacity-0 pointer-events-none translate-x-full"
+    ? "opacity-100 pointer-events-auto" 
+    : "opacity-0 pointer-events-none"
 }`}>
-  <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-emerald-700">
-    {/* Background Pattern for Better Visual */}
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.3),rgba(255,255,255,0))]"></div>
+  <div className="absolute inset-0 bg-white">
+    {/* Simple white background for better visibility */}
     
-    <div className="flex flex-col h-full relative z-10">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-white/20 bg-green-700/80 backdrop-blur-sm">
+      <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 bg-white shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shadow-lg">
-            <span className="text-white text-xl">🍔</span>
+          <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center shadow-md">
+            <span className="text-white text-lg">🍔</span>
           </div>
           <div>
-            <span className="text-2xl font-bold text-white block">Smart Canteen</span>
-            <span className="text-white/90 text-sm">Delicious & Fast</span>
+            <span className="text-xl font-bold text-gray-900 block">Smart Canteen</span>
+            <span className="text-gray-500 text-sm">Delicious & Fast</span>
           </div>
         </div>
         <button
           onClick={() => setIsMenuOpen(false)}
-          className="p-3 rounded-2xl bg-white/20 hover:bg-white/30 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110"
+          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200 border border-gray-300"
           aria-label="Close menu"
         >
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      {/* Navigation Links */}
-      <div className="flex-1 p-6 space-y-3 overflow-y-auto">
-        {[
-          { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
-          { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes", active: true },
-          { href: "/about", label: "About", icon: "ℹ️", description: "Learn about us" },
-          { href: "/contact", label: "Contact", icon: "📞", description: "Get in touch" },
-        ].map((link) => (
-          <Link 
-            key={link.href}
-            href={link.href} 
-            className={`flex items-center space-x-4 p-4 rounded-2xl transition-all duration-300 group border backdrop-blur-sm ${
-              link.active
-                ? "bg-white/30 border-white/40"
-                : "bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/30"
-            }`}
-            onClick={() => setIsMenuOpen(false)}
-          >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-200 ${
-              link.active ? "bg-white/30" : "bg-white/20 group-hover:bg-white/30"
-            }`}>
-              <span className="text-xl">{link.icon}</span>
-            </div>
-            <div className="flex-1">
-              <span className="font-bold text-white text-lg block">{link.label}</span>
-              <span className="text-white/70 text-sm">{link.description}</span>
-            </div>
-            <div className="text-white/60 group-hover:text-white">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-        ))}
+      {/* Navigation Links - Scrollable Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-3">
+          {[
+            { 
+              href: "/", 
+              label: "Home", 
+              icon: "🏠", 
+              description: "Back to homepage",
+              active: false
+            },
+            { 
+              href: "/menu", 
+              label: "Menu", 
+              icon: "📋", 
+              description: "Browse our dishes",
+              active: true
+            },
+            { 
+              href: "/about", 
+              label: "About Us", 
+              icon: "ℹ️", 
+              description: "Learn about our story",
+              active: false
+            },
+            { 
+              href: "/contact", 
+              label: "Contact", 
+              icon: "📞", 
+              description: "Get in touch with us",
+              active: false
+            },
+          ].map((link) => (
+            <Link 
+              key={link.href}
+              href={link.href} 
+              className={`flex items-center space-x-3 p-4 rounded-xl border transition-all duration-200 group ${
+                link.active
+                  ? "bg-green-50 border-green-200 shadow-sm"
+                  : "bg-white border-gray-200 hover:border-green-300 hover:shadow-md"
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors duration-200 ${
+                link.active
+                  ? "bg-green-100 border-green-300"
+                  : "bg-gray-50 border-gray-200 group-hover:bg-green-50 group-hover:border-green-300"
+              }`}>
+                <span className="text-lg">{link.icon}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className={`font-semibold text-base block ${
+                  link.active ? "text-green-700" : "text-gray-900 group-hover:text-green-700"
+                }`}>
+                  {link.label}
+                </span>
+                <span className={`text-sm ${
+                  link.active ? "text-green-600" : "text-gray-600"
+                }`}>
+                  {link.description}
+                </span>
+              </div>
+              <div className={`transition-colors duration-200 ${
+                link.active ? "text-green-500" : "text-gray-400 group-hover:text-green-500"
+              }`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* Auth Buttons */}
-      <div className="flex-shrink-0 p-6 space-y-4 border-t border-white/20 bg-white/10 backdrop-blur-sm">
+      {/* Auth Buttons - Always Visible */}
+      <div className="flex-shrink-0 p-4 space-y-3 border-t border-gray-200 bg-white">
         <Link 
           href="/login" 
-          className="w-full flex items-center justify-center px-6 py-4 bg-white/20 text-white font-bold rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/20 hover:border-white/30 text-lg"
+          className="w-full px-4 py-3 bg-white text-green-600 font-semibold rounded-lg border-2 border-green-200 hover:border-green-300 hover:bg-green-50 transition-all duration-200 text-center text-base flex items-center justify-center gap-2"
           onClick={() => setIsMenuOpen(false)}
         >
-          <span className="mr-2">🔐</span>
+          <span>🔐</span>
           Sign In
         </Link>
         <Link 
           href="/signup" 
-          className="w-full px-6 py-4 bg-white text-green-600 font-bold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-center block text-lg"
+          className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg shadow hover:shadow-md hover:from-green-600 hover:to-emerald-600 transition-all duration-200 text-center text-base flex items-center justify-center gap-2"
           onClick={() => setIsMenuOpen(false)}
         >
+          <span>🚀</span>
           Get Started
         </Link>
       </div>
