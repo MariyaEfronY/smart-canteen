@@ -496,7 +496,7 @@ const handleAddToCart = useCallback((item: MenuItem) => {
         </div>
 
         {/* Navigation Links */}
-        <div className="flex-1 p-4 space-y-6  bg-gray-100">
+        <div className="flex-1 p-4 space-y-6  bg-gray-100 gap-0.5">
           {[
             { href: "/", label: "Home", icon: "🏠", description: "Back to homepage" },
             { href: "/menu", label: "Menu", icon: "📋", description: "Browse our dishes" },
