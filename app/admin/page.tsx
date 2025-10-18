@@ -878,25 +878,28 @@ export default function AdminDashboard() {
                           <h4 className="font-semibold text-gray-900 mb-3 text-lg">Order Items:</h4>
                           <div className="space-y-3">
                             {order.items.map((orderItem, index) => (
-                              <div key={index} className="flex items-center justify-between group-hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <img
-                                    src={orderItem.item.imageUrl || "/placeholder-food.jpg"}
-                                    alt={orderItem.item.name}
-                                    className="w-16 h-16 rounded-lg object-cover border border-gray-200 shadow-sm"
-                                  />
-                                  <div className="flex-1">
-                                    <p className="font-medium text-gray-900">{orderItem.item.name}</p>
-                                    <p className="text-gray-600 text-sm">
-                                      ₹{orderItem.item.price} × {orderItem.quantity}
-                                    </p>
-                                  </div>
-                                </div>
-                                <p className="font-semibold text-gray-900 text-lg">
-                                  ₹{(orderItem.item.price * orderItem.quantity).toFixed(2)}
-                                </p>
-                              </div>
-                            ))}
+  <div key={index} className="flex items-center justify-between group-hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
+    <div className="flex items-center gap-3 flex-1">
+      <img
+        src={orderItem.item?.imageUrl || "/placeholder-food.jpg"}
+        alt={orderItem.item?.name || "Unknown Item"}
+        className="w-16 h-16 rounded-lg object-cover border border-gray-200 shadow-sm"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = "/placeholder-food.jpg";
+        }}
+      />
+      <div className="flex-1">
+        <p className="font-medium text-gray-900">{orderItem.item?.name || "Unknown Item"}</p>
+        <p className="text-gray-600 text-sm">
+          ₹{orderItem.item?.price || 0} × {orderItem.quantity}
+        </p>
+      </div>
+    </div>
+    <p className="font-semibold text-gray-900 text-lg">
+      ₹{((orderItem.item?.price || 0) * orderItem.quantity).toFixed(2)}
+    </p>
+  </div>
+))}
                           </div>
                         </div>
                       </div>
