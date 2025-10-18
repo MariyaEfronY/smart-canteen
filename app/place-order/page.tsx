@@ -69,6 +69,9 @@ export default function AdminDashboard() {
     status: "available",
   });
 
+  // Placeholder image data URL
+  const PLACEHOLDER_IMAGE = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03NSA0M0M4Ni44MDkxIDQzIDk2LjUgNTIuNjk5MSA5Ni41IDY0LjVDOTYuNSA3Ni4zMDA5IDg2LjgwOTEgODYgNzUgODZDNjMuMTk5MSA4NiA1My41IDc2LjMwMDkgNTMuNSA2NC41QzUzLjUgNTIuNjk5MSA2My4xOTkxIDQzIDc1IDQzWk03NSAxMDBDMTAxLjU0NyAxMDAgMTIzIDExOC40NTMgMTIzIDE0NUg3NUgyN0MyNyAxMTguNDUzIDQ4LjQ1MyAxMDAgNzUgMTAwWiIgZmlsbD0iOUExQTlBIiBmaWxsLW9wYWNpdHk9IjAuNSIvPgo8L3N2Zz4K";
+
   // ✅ Live refresh interval
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -136,7 +139,7 @@ export default function AdminDashboard() {
     fetchOrders();
   }, []);
 
-  // ✅ Logout
+  // ✅ Logout Function
   const handleLogout = async () => {
     try {
       const response = await fetch("/api/auth/logout", { method: "POST" });
@@ -601,11 +604,11 @@ export default function AdminDashboard() {
                     <div key={item._id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300">
                       <div className="flex items-start gap-3">
                         <img
-                          src={item.imageUrl}
+                          src={item.imageUrl || PLACEHOLDER_IMAGE}
                           alt={item.name}
                           className="h-16 w-16 rounded-lg object-cover shadow-md flex-shrink-0"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/placeholder-image.jpg";
+                            (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
                           }}
                         />
                         <div className="flex-1 min-w-0">
@@ -686,11 +689,11 @@ export default function AdminDashboard() {
                       <tr key={item._id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 group">
                         <td className="px-6 py-4 whitespace-nowrap flex items-center gap-3">
                           <img
-                            src={item.imageUrl}
+                            src={item.imageUrl || PLACEHOLDER_IMAGE}
                             alt={item.name}
                             className="h-12 w-12 rounded-lg object-cover shadow-md group-hover:scale-110 transition-transform duration-300"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/placeholder-image.jpg";
+                              (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
                             }}
                           />
                           <span className="font-medium text-gray-900 group-hover:text-green-700 transition-colors duration-300">
@@ -946,11 +949,11 @@ export default function AdminDashboard() {
                               <div key={index} className="flex items-center justify-between group-hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200">
                                 <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                                   <img
-                                    src={orderItem.item?.imageUrl || "/placeholder-food.jpg"}
+                                    src={orderItem.item?.imageUrl || PLACEHOLDER_IMAGE}
                                     alt={orderItem.item?.name || "Unknown Item"}
                                     className="w-12 h-12 md:w-16 md:h-16 rounded-lg object-cover border border-gray-200 shadow-sm flex-shrink-0"
                                     onError={(e) => {
-                                      (e.target as HTMLImageElement).src = "/placeholder-food.jpg";
+                                      (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
                                     }}
                                   />
                                   <div className="flex-1 min-w-0">
@@ -1043,44 +1046,17 @@ export default function AdminDashboard() {
                 <Plus size={18} /> <span className="hidden sm:inline">Add Menu</span>
               </button>
 
-              {/* Notifications */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="p-2 md:p-3 rounded-lg md:rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all duration-300 transform hover:scale-110 relative"
-                >
-                  <Bell size={18} />
-                  {notificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 md:h-5 md:w-5 flex items-center justify-center font-bold text-[10px] md:text-xs">
-                      {notificationCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-
+              {/* Single Logout Button */}
               <button
                 onClick={handleLogout}
                 className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl hover:from-red-600 hover:to-pink-600 flex items-center gap-2 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl text-sm md:text-base"
               >
-                <LogOut size={18} /> <span className="hidden sm:inline">Logout</span>
+                <LogOut size={18} /> <span>Logout</span>
               </button>
             </div>
 
             {/* Mobile menu button */}
             <div className="lg:hidden flex items-center space-x-2 md:space-x-3">
-              {/* Notifications for mobile */}
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all duration-300 transform hover:scale-110 relative"
-              >
-                <Bell size={18} />
-                {notificationCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold text-[10px]">
-                    {notificationCount}
-                  </span>
-                )}
-              </button>
-
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 rounded-lg bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300 transition-all duration-300 transform hover:scale-110 shadow-lg"
@@ -1122,6 +1098,7 @@ export default function AdminDashboard() {
                 Add Menu Item
               </button>
 
+              {/* Single Logout Button in Mobile Menu */}
               <button
                 onClick={handleLogout}
                 className="w-full text-left bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-3 rounded-lg hover:from-red-600 hover:to-pink-600 flex items-center gap-3 transition-all duration-300 transform hover:scale-105 shadow-lg"
