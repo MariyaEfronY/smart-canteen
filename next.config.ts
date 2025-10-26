@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: {
-    // ✅ Ignore ESLint errors during builds on Vercel
-    ignoreDuringBuilds: true,
-  },
+eslint: {
+  ignoreDuringBuilds: true
+},
   typescript: {
     // ✅ Ignore TypeScript type errors during builds
     ignoreBuildErrors: true,
