@@ -59,78 +59,73 @@ export default function AuthForm({ type }: Props) {
     return result;
   };
 
-  // ✅ FIXED: Simplified and reliable redirection function
+  // ✅ FIXED: Enhanced redirection function with proper order placement check
   const redirectUser = async (formRole?: string) => {
     try {
       console.log("🔄 Starting redirection process...");
       
-      // First, check for pending order redirect
+      // Check if there's a pending order from localStorage
       const redirectData = localStorage.getItem('loginRedirect');
       
       if (redirectData) {
-        try {
-          const parsedData = JSON.parse(redirectData);
-          console.log("📦 Found redirect data:", parsedData);
-          
-          // If there's a pending order, redirect to place-order immediately
-          if (parsedData.fromOrder === true && parsedData.redirectTo === '/place-order') {
-            console.log("🎯 Redirecting to place-order page (pending order detected)");
-            // Clear the redirect data after use
-            localStorage.removeItem('loginRedirect');
-            router.push('/place-order');
-            return; // Stop further execution
-          }
-        } catch (error) {
-          console.error("❌ Error parsing redirect data:", error);
-          localStorage.removeItem('loginRedirect'); // Clear invalid data
+        const parsedData = JSON.parse(redirectData);
+        console.log("📦 Found redirect data:", parsedData);
+        
+        // ✅ CRITICAL FIX: Properly check for order placement redirect
+        if (parsedData.fromOrder === true && parsedData.redirectTo === '/place-order') {
+          console.log("🎯 Redirecting to place-order page (pending order detected)");
+          router.push('/place-order');
+          return;
+        } else {
+          console.log("ℹ️ No pending order found in redirect data");
         }
+      } else {
+        console.log("ℹ️ No redirect data found in localStorage");
       }
 
-      // If no pending order, try to get user data from API
+      // If no pending order, proceed with normal dashboard redirection
       console.log("🔍 Fetching user data for role-based redirection...");
       const userResponse = await fetch("/api/auth/me");
-      
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const userRole = userData.user?.role || formRole;
-        console.log("👤 User role detected from API:", userRole);
+        console.log("👤 User role detected:", userRole);
         
         // Redirect based on confirmed role
-        redirectToDashboard(userRole);
+        if (userRole === "admin") {
+          console.log("🚀 Redirecting to admin dashboard");
+          router.push("/admin");
+        } else if (userRole === "staff") {
+          console.log("🚀 Redirecting to staff dashboard");
+          router.push("/staff");
+        } else {
+          console.log("🚀 Redirecting to student dashboard");
+          router.push("/student");
+        }
       } else {
-        console.log("⚠️ Could not fetch user data, using form role");
-        // Use the role from form data as fallback
-        redirectToDashboard(formRole);
+        console.log("⚠️ Could not fetch user data, using fallback redirection");
+        // Fallback to form data role
+        redirectFallback(formRole);
       }
     } catch (error) {
       console.error("❌ Error in redirectUser:", error);
-      // Final fallback to form data role
-      redirectToDashboard(formRole);
+      // Fallback to form data role
+      redirectFallback(formRole);
     }
   };
 
-  // ✅ NEW: Centralized dashboard redirection
-  const redirectToDashboard = (role: string | undefined) => {
-    console.log("🎯 Redirecting to dashboard for role:", role);
-    
-    switch (role) {
-      case "admin":
-        console.log("🚀 Redirecting to admin dashboard");
-        router.push("/admin");
-        break;
-      case "staff":
-        console.log("🚀 Redirecting to staff dashboard");
-        router.push("/staff");
-        break;
-      case "student":
-      default:
-        console.log("🚀 Redirecting to student dashboard");
-        router.push("/student");
-        break;
+  // ✅ FALLBACK REDIRECTION
+  const redirectFallback = (role: string | undefined) => {
+    console.log("🔄 Using fallback redirection for role:", role);
+    if (role === "admin") {
+      router.push("/admin");
+    } else if (role === "staff") {
+      router.push("/staff");
+    } else {
+      router.push("/student");
     }
   };
 
-  // ✅ FIXED: Enhanced onSubmit with proper error handling and redirection
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
     try {
@@ -168,35 +163,16 @@ export default function AuthForm({ type }: Props) {
       }
 
       console.log("📤 Sending auth request to:", url);
-      console.log("📝 Request data:", { ...requestData, password: '***' }); // Hide password in logs
-      
       const result = await apiRequest(url, requestData);
-      console.log("✅ Auth successful:", result);
+      console.log("✅ Auth successful, redirecting...");
       
-      // ✅ CRITICAL FIX: Add a small delay to ensure session is set
-      console.log("⏳ Waiting for session to be established...");
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // ✅ Now redirect user
+      // ✅ UPDATED: Enhanced redirection after successful auth
       await redirectUser(data.role);
       
     } catch (err: unknown) {
       const error = err as Error;
       console.error("❌ Auth error:", error);
-      
-      // Show user-friendly error messages
-      let errorMessage = error.message || "Something went wrong";
-      
-      // Enhance common error messages
-      if (errorMessage.includes("Invalid credentials") || errorMessage.includes("not found")) {
-        errorMessage = "Invalid login credentials. Please check your details and try again.";
-      } else if (errorMessage.includes("already exists")) {
-        errorMessage = "An account with these details already exists. Please try logging in instead.";
-      } else if (errorMessage.includes("password")) {
-        errorMessage = "Password is incorrect. Please try again.";
-      }
-      
-      alert(errorMessage);
+      alert(error.message || "Something went wrong");
     } finally {
       setIsLoading(false);
     }
