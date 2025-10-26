@@ -155,6 +155,24 @@ export default function AdminDashboard() {
     }
   };
 
+  // ✅ NEW: Function to handle order placement redirect
+  const handleOrderPlaceRedirect = () => {
+    // Store order data in localStorage for after login
+    const orderData = {
+      items: [], // You can store cart items here if needed
+      totalAmount: 0, // You can store total amount here
+      redirectTo: '/place-order',
+      fromOrder: true,
+      timestamp: new Date().toISOString()
+    };
+    
+    localStorage.setItem('pendingOrder', JSON.stringify(orderData));
+    
+    // Redirect to login page
+    toast.success("Please login to complete your order");
+    router.push("/login");
+  };
+
   // ✅ Image selection
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
