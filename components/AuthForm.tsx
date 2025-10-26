@@ -59,73 +59,78 @@ export default function AuthForm({ type }: Props) {
     return result;
   };
 
-  // ✅ FIXED: Enhanced redirection function with proper order placement check
+  // ✅ FIXED: Simplified and reliable redirection function
   const redirectUser = async (formRole?: string) => {
     try {
       console.log("🔄 Starting redirection process...");
       
-      // Check if there's a pending order from localStorage
+      // First, check for pending order redirect
       const redirectData = localStorage.getItem('loginRedirect');
       
       if (redirectData) {
-        const parsedData = JSON.parse(redirectData);
-        console.log("📦 Found redirect data:", parsedData);
-        
-        // ✅ CRITICAL FIX: Properly check for order placement redirect
-        if (parsedData.fromOrder === true && parsedData.redirectTo === '/place-order') {
-          console.log("🎯 Redirecting to place-order page (pending order detected)");
-          router.push('/place-order');
-          return;
-        } else {
-          console.log("ℹ️ No pending order found in redirect data");
+        try {
+          const parsedData = JSON.parse(redirectData);
+          console.log("📦 Found redirect data:", parsedData);
+          
+          // If there's a pending order, redirect to place-order immediately
+          if (parsedData.fromOrder === true && parsedData.redirectTo === '/place-order') {
+            console.log("🎯 Redirecting to place-order page (pending order detected)");
+            // Clear the redirect data after use
+            localStorage.removeItem('loginRedirect');
+            router.push('/place-order');
+            return; // Stop further execution
+          }
+        } catch (error) {
+          console.error("❌ Error parsing redirect data:", error);
+          localStorage.removeItem('loginRedirect'); // Clear invalid data
         }
-      } else {
-        console.log("ℹ️ No redirect data found in localStorage");
       }
 
-      // If no pending order, proceed with normal dashboard redirection
+      // If no pending order, try to get user data from API
       console.log("🔍 Fetching user data for role-based redirection...");
       const userResponse = await fetch("/api/auth/me");
+      
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const userRole = userData.user?.role || formRole;
-        console.log("👤 User role detected:", userRole);
+        console.log("👤 User role detected from API:", userRole);
         
         // Redirect based on confirmed role
-        if (userRole === "admin") {
-          console.log("🚀 Redirecting to admin dashboard");
-          router.push("/admin");
-        } else if (userRole === "staff") {
-          console.log("🚀 Redirecting to staff dashboard");
-          router.push("/staff");
-        } else {
-          console.log("🚀 Redirecting to student dashboard");
-          router.push("/student");
-        }
+        redirectToDashboard(userRole);
       } else {
-        console.log("⚠️ Could not fetch user data, using fallback redirection");
-        // Fallback to form data role
-        redirectFallback(formRole);
+        console.log("⚠️ Could not fetch user data, using form role");
+        // Use the role from form data as fallback
+        redirectToDashboard(formRole);
       }
     } catch (error) {
       console.error("❌ Error in redirectUser:", error);
-      // Fallback to form data role
-      redirectFallback(formRole);
+      // Final fallback to form data role
+      redirectToDashboard(formRole);
     }
   };
 
-  // ✅ FALLBACK REDIRECTION
-  const redirectFallback = (role: string | undefined) => {
-    console.log("🔄 Using fallback redirection for role:", role);
-    if (role === "admin") {
-      router.push("/admin");
-    } else if (role === "staff") {
-      router.push("/staff");
-    } else {
-      router.push("/student");
+  // ✅ NEW: Centralized dashboard redirection
+  const redirectToDashboard = (role: string | undefined) => {
+    console.log("🎯 Redirecting to dashboard for role:", role);
+    
+    switch (role) {
+      case "admin":
+        console.log("🚀 Redirecting to admin dashboard");
+        router.push("/admin");
+        break;
+      case "staff":
+        console.log("🚀 Redirecting to staff dashboard");
+        router.push("/staff");
+        break;
+      case "student":
+      default:
+        console.log("🚀 Redirecting to student dashboard");
+        router.push("/student");
+        break;
     }
   };
 
+  // ✅ FIXED: Enhanced onSubmit with proper error handling and redirection
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
     try {
@@ -163,16 +168,35 @@ export default function AuthForm({ type }: Props) {
       }
 
       console.log("📤 Sending auth request to:", url);
-      const result = await apiRequest(url, requestData);
-      console.log("✅ Auth successful, redirecting...");
+      console.log("📝 Request data:", { ...requestData, password: '***' }); // Hide password in logs
       
-      // ✅ UPDATED: Enhanced redirection after successful auth
+      const result = await apiRequest(url, requestData);
+      console.log("✅ Auth successful:", result);
+      
+      // ✅ CRITICAL FIX: Add a small delay to ensure session is set
+      console.log("⏳ Waiting for session to be established...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // ✅ Now redirect user
       await redirectUser(data.role);
       
     } catch (err: unknown) {
       const error = err as Error;
       console.error("❌ Auth error:", error);
-      alert(error.message || "Something went wrong");
+      
+      // Show user-friendly error messages
+      let errorMessage = error.message || "Something went wrong";
+      
+      // Enhance common error messages
+      if (errorMessage.includes("Invalid credentials") || errorMessage.includes("not found")) {
+        errorMessage = "Invalid login credentials. Please check your details and try again.";
+      } else if (errorMessage.includes("already exists")) {
+        errorMessage = "An account with these details already exists. Please try logging in instead.";
+      } else if (errorMessage.includes("password")) {
+        errorMessage = "Password is incorrect. Please try again.";
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
