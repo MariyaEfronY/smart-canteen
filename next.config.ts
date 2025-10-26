@@ -2,13 +2,22 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   eslint: {
-    // ✅ Ignore ESLint errors during build
+    // ✅ Ignore ESLint errors during builds on Vercel
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // ✅ Ignore type errors during build
+    // ✅ Ignore TypeScript type errors during builds
     ignoreBuildErrors: true,
   },
+  experimental: {
+    // ✅ Keep Turbopack stable for production
+    turbo: {
+      rules: {
+        "*.ts": { loaders: ["ts-loader"] },
+        "*.tsx": { loaders: ["ts-loader"] }
+      }
+    }
+  }
 };
 
 export default nextConfig;
