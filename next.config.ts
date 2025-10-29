@@ -5,13 +5,13 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // ✅ Ignore TypeScript type errors during builds
     ignoreBuildErrors: true,
   },
-  turbopack: {
-    // ✅ You can configure options here later if needed
+  experimental: {
+    turbo: {
+      rules: {},
+    },
   },
-  reactStrictMode: true,
 };
 
 export default nextConfig;
