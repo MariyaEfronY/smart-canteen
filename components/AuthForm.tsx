@@ -59,33 +59,32 @@ export default function AuthForm({ type }: Props) {
     return result;
   };
 
-  // ✅ FIXED: Enhanced redirection function with proper order placement check
+  // ✅ FIXED: Enhanced redirection function with proper role detection
   const redirectUser = async (formRole?: string) => {
     try {
       console.log("🔄 Starting redirection process...");
       
-      // Check if there's a pending order from localStorage
+      // ✅ CRITICAL FIX: First check for pending orders
       const redirectData = localStorage.getItem('loginRedirect');
       
       if (redirectData) {
         const parsedData = JSON.parse(redirectData);
         console.log("📦 Found redirect data:", parsedData);
         
-        // ✅ CRITICAL FIX: Properly check for order placement redirect
+        // If there's a pending order, redirect to place-order immediately
         if (parsedData.fromOrder === true && parsedData.redirectTo === '/place-order') {
           console.log("🎯 Redirecting to place-order page (pending order detected)");
+          // Clear the redirect data to prevent future conflicts
+          localStorage.removeItem('loginRedirect');
           router.push('/place-order');
-          return;
-        } else {
-          console.log("ℹ️ No pending order found in redirect data");
+          return; // IMPORTANT: Return here to stop further execution
         }
-      } else {
-        console.log("ℹ️ No redirect data found in localStorage");
       }
 
-      // If no pending order, proceed with normal dashboard redirection
+      // ✅ FIXED: Get actual user role from server for normal redirection
       console.log("🔍 Fetching user data for role-based redirection...");
       const userResponse = await fetch("/api/auth/me");
+      
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const userRole = userData.user?.role || formRole;
@@ -103,20 +102,28 @@ export default function AuthForm({ type }: Props) {
           router.push("/student");
         }
       } else {
-        console.log("⚠️ Could not fetch user data, using fallback redirection");
-        // Fallback to form data role
+        console.log("⚠️ Could not fetch user data, using form role");
+        // Fallback to form data role with safety check
         redirectFallback(formRole);
       }
     } catch (error) {
       console.error("❌ Error in redirectUser:", error);
-      // Fallback to form data role
+      // Fallback to form data role with safety check
       redirectFallback(formRole);
     }
   };
 
-  // ✅ FALLBACK REDIRECTION
+  // ✅ FIXED: Enhanced fallback redirection
   const redirectFallback = (role: string | undefined) => {
     console.log("🔄 Using fallback redirection for role:", role);
+    
+    // Safety check - if no role is provided, redirect to student as default
+    if (!role) {
+      console.log("⚠️ No role provided, defaulting to student dashboard");
+      router.push("/student");
+      return;
+    }
+    
     if (role === "admin") {
       router.push("/admin");
     } else if (role === "staff") {
@@ -177,6 +184,11 @@ export default function AuthForm({ type }: Props) {
       setIsLoading(false);
     }
   };
+
+  // ... (rest of your component code remains the same until the return statement)
+
+  // The rest of your component code (getLoginIdentifier, getSignupIdentifier, etc.) remains exactly the same
+  // Only the redirectUser and redirectFallback functions have been modified
 
   // Get identifier field based on selected role for LOGIN
   const getLoginIdentifier = () => {
