@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import bcrypt from "bcryptjs";
 import { dbConnect } from "@/lib/mongoose";
 import User from "@/models/User";
-import { signToken, setTokenCookie, clearTokenCookie } from "@/lib/auth";
+import { signToken, setTokenCookie, clearTokenCookie } from "@/lib/auth"; // ✅ Handles cookies correctly
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
@@ -34,10 +34,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    // 🧹 Clear any previous token
     clearTokenCookie(res);
 
+    // ✅ Create and set a new token
     const token = signToken({ id: user._id, role: user.role });
     setTokenCookie(res, token);
+
+    console.log("✅ Login successful for:", user.name);
 
     return res.status(200).json({
       message: "Login successful",
@@ -50,6 +54,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (err: any) {
     console.error("💥 Login error:", err);
-    res.status(500).json({ message: "Server error during login", error: err.message });
+    res.status(500).json({
+      message: "Server error during login",
+      error: err.message || "Unknown error",
+    });
   }
 }

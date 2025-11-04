@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import { dbConnect } from "@/lib/mongoose";
 import User from "@/models/User";
 import { signToken, setTokenCookie } from "@/lib/auth";
+import cookie from "cookie";
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();

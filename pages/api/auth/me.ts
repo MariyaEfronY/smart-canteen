@@ -3,6 +3,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { dbConnect } from "@/lib/mongoose";
 import User from "@/models/User";
 import { getTokenFromReq, verifyToken } from "@/lib/auth";
+import cookie from "cookie";
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();

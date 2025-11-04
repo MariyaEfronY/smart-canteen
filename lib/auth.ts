@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import jwt, { JwtPayload, Secret, SignOptions } from "jsonwebtoken";
-import cookie from "cookie";
+import * as cookie from "cookie";  // ✅ FIXED — proper import for serverless
 import User from "@/models/User";
 import { dbConnect } from "./mongoose";
 
@@ -24,12 +24,10 @@ export function signToken(payload: AuthPayload): string {
 
 // ---- PARSE TOKEN (supports cookie & Authorization header) ----
 export function getTokenFromReq(req: NextApiRequest): string | null {
-  // Try from cookie
   const rawCookie = req.headers.cookie || "";
   const cookies = cookie.parse(rawCookie);
   if (cookies.token) return cookies.token;
 
-  // Try from Bearer header
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.replace("Bearer ", "");
@@ -76,7 +74,7 @@ export function setTokenCookie(res: NextApiResponse, token: string): void {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 7,
   });
   res.setHeader("Set-Cookie", cookieStr);
 }
@@ -110,5 +108,5 @@ export async function requireRole(
   if (!allowedRoles.includes(userData.role))
     return res.status(403).json({ message: "Access denied" });
 
-  return userData; // Return user details for next operations
+  return userData;
 }
