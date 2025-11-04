@@ -6,16 +6,11 @@ import User from "@/models/User";
 import { signToken, setTokenCookie, clearTokenCookie } from "@/lib/auth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ message: "Method not allowed" });
-
-  console.log("📩 Login API called");
+  if (req.method !== "POST") return res.status(405).end();
+  await dbConnect();
 
   try {
-    await dbConnect();
-
     const { email, password, role, dno, staffId } = req.body;
-    console.log("🧠 Incoming login request:", { role, email, dno, staffId });
-
     let user;
 
     // 🔍 Role-based lookup
@@ -32,30 +27,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: "Invalid role" });
     }
 
-    // 🚫 User not found
+    // 🚫 If user not found or wrong role
     if (!user) {
-      console.log("❌ User not found or role mismatch");
       return res.status(400).json({ message: "User not found or role mismatch" });
     }
 
     // 🔒 Validate password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log("❌ Invalid password for user:", user.name);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // 🧹 Clear any existing token
+    // 🧹 Clear any old token first
     clearTokenCookie(res);
 
-    // ✅ Sign & set token
+    // ✅ Sign and set new token
     const token = signToken({ id: user._id, role: user.role });
     setTokenCookie(res, token);
 
-    console.log("✅ Login success for user:", user.name);
-
-    // ✅ Respond with safe data
-    return res.status(200).json({
+    // 🧾 Respond with limited safe data
+    res.status(200).json({
       message: "Login successful",
       user: {
         id: user._id,
@@ -65,11 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error("💥 Login API error:", errorMessage);
-    return res.status(500).json({
-      message: "Server error during login",
-      error: errorMessage,
-    });
+    const errorMessage = err instanceof Error ? err.message : "Unknown server error";
+    console.error("Login error:", errorMessage);
+    res.status(500).json({ message: "Server error during login", error: errorMessage });
   }
 }
