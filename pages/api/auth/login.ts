@@ -9,44 +9,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") return res.status(405).end();
   await dbConnect();
 
+  console.log("📩 Login API called");
+
   try {
     const { email, password, role, dno, staffId } = req.body;
-    let user;
+    console.log("🧠 Incoming login request:", req.body);
 
-    // 🔍 Role-based lookup
-    if (role === "student") {
-      if (!dno) return res.status(400).json({ message: "D.No required" });
-      user = await User.findOne({ dno, role: "student" });
-    } else if (role === "staff") {
-      if (!staffId) return res.status(400).json({ message: "Staff ID required" });
-      user = await User.findOne({ staffId, role: "staff" });
-    } else if (role === "admin") {
-      if (!email) return res.status(400).json({ message: "Email required" });
-      user = await User.findOne({ email, role: "admin" });
-    } else {
-      return res.status(400).json({ message: "Invalid role" });
-    }
+    let userQuery: any = {};
+    if (role === "student" && dno) userQuery = { dno, role: "student" };
+    else if (role === "staff" && staffId) userQuery = { staffId, role: "staff" };
+    else if (role === "admin" && email) userQuery = { email, role: "admin" };
 
-    // 🚫 If user not found or wrong role
+    console.log("🔍 MongoDB Query:", userQuery);
+
+    const user = await User.findOne(userQuery);
+    console.log("🧾 User found:", user ? user._id : "❌ No user");
+
     if (!user) {
       return res.status(400).json({ message: "User not found or role mismatch" });
     }
 
-    // 🔒 Validate password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // 🧹 Clear any old token first
     clearTokenCookie(res);
 
-    // ✅ Sign and set new token
     const token = signToken({ id: user._id, role: user.role });
     setTokenCookie(res, token);
 
-    // 🧾 Respond with limited safe data
-    res.status(200).json({
+    return res.status(200).json({
       message: "Login successful",
       user: {
         id: user._id,
@@ -55,9 +48,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email: user.email,
       },
     });
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown server error";
-    console.error("Login error:", errorMessage);
-    res.status(500).json({ message: "Server error during login", error: errorMessage });
+  } catch (err: any) {
+    console.error("💥 Login error:", err);
+    res.status(500).json({ message: "Server error during login", error: err.message });
   }
 }
