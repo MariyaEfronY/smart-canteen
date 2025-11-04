@@ -15,7 +15,6 @@ const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
 
-    // ✅ use a typed `this` instead of `any`
     email: {
       type: String,
       required: function (this: IUser) {
@@ -50,6 +49,10 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// ✅ Mongoose model export
-export default mongoose.models.User ||
-  mongoose.model<IUser>("User", UserSchema);
+// ✅ Unique indexes per role (prevents duplicates for same role)
+UserSchema.index({ role: 1, email: 1 }, { unique: true, sparse: true });
+UserSchema.index({ role: 1, dno: 1 }, { unique: true, sparse: true });
+UserSchema.index({ role: 1, staffId: 1 }, { unique: true, sparse: true });
+
+// ✅ Model export
+export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
