@@ -20,7 +20,6 @@ const UserSchema = new Schema<IUser>(
       required: function (this: IUser) {
         return this.role === "admin";
       },
-      unique: false,
       sparse: true,
     },
 
@@ -49,10 +48,21 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// ✅ Unique indexes per role (prevents duplicates for same role)
-UserSchema.index({ role: 1, email: 1 }, { unique: true, sparse: true });
-UserSchema.index({ role: 1, dno: 1 }, { unique: true, sparse: true });
-UserSchema.index({ role: 1, staffId: 1 }, { unique: true, sparse: true });
+// ✅ Unique per-role indexes (partial filters)
+UserSchema.index(
+  { role: 1, dno: 1 },
+  { unique: true, partialFilterExpression: { role: "student" } }
+);
+
+UserSchema.index(
+  { role: 1, staffId: 1 },
+  { unique: true, partialFilterExpression: { role: "staff" } }
+);
+
+UserSchema.index(
+  { role: 1, email: 1 },
+  { unique: true, partialFilterExpression: { role: "admin" } }
+);
 
 // ✅ Model export
 export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
