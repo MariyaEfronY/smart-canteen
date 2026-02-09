@@ -33,7 +33,7 @@ export default function AuthForm({ type }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  
+
   const watchRole = watch("role");
 
   // Fix hydration by only rendering after mount
@@ -51,7 +51,7 @@ export default function AuthForm({ type }: Props) {
     });
 
     const result: ApiResponse = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(result.message || "Something went wrong");
     }
@@ -63,14 +63,14 @@ export default function AuthForm({ type }: Props) {
   const redirectUser = async (formRole?: string) => {
     try {
       console.log("🔄 Starting redirection process...");
-      
+
       // ✅ CRITICAL FIX: First check for pending orders
       const redirectData = localStorage.getItem('loginRedirect');
-      
+
       if (redirectData) {
         const parsedData = JSON.parse(redirectData);
         console.log("📦 Found redirect data:", parsedData);
-        
+
         // If there's a pending order, redirect to place-order immediately
         if (parsedData.fromOrder === true && parsedData.redirectTo === '/place-order') {
           console.log("🎯 Redirecting to place-order page (pending order detected)");
@@ -84,12 +84,12 @@ export default function AuthForm({ type }: Props) {
       // ✅ FIXED: Get actual user role from server for normal redirection
       console.log("🔍 Fetching user data for role-based redirection...");
       const userResponse = await fetch("/api/auth/me");
-      
+
       if (userResponse.ok) {
         const userData = await userResponse.json();
         const userRole = userData.user?.role || formRole;
         console.log("👤 User role detected:", userRole);
-        
+
         // Redirect based on confirmed role
         if (userRole === "admin") {
           console.log("🚀 Redirecting to admin dashboard");
@@ -116,14 +116,14 @@ export default function AuthForm({ type }: Props) {
   // ✅ FIXED: Enhanced fallback redirection
   const redirectFallback = (role: string | undefined) => {
     console.log("🔄 Using fallback redirection for role:", role);
-    
+
     // Safety check - if no role is provided, redirect to student as default
     if (!role) {
       console.log("⚠️ No role provided, defaulting to student dashboard");
       router.push("/student");
       return;
     }
-    
+
     if (role === "admin") {
       router.push("/admin");
     } else if (role === "staff") {
@@ -136,8 +136,12 @@ export default function AuthForm({ type }: Props) {
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
     try {
-      const url = type === "login" ? "/api/auth/login" : "/api/auth/signup";
-      
+      console.log("📤 Sending auth request to:", "/api/auth/signup");
+      const url = type === "login"
+        ? "/api/auth/login"
+        : "/api/auth/signup";
+
+
       let requestData: Record<string, unknown> = {};
 
       // For login, ensure we send the correct identifier based on role
@@ -172,10 +176,10 @@ export default function AuthForm({ type }: Props) {
       console.log("📤 Sending auth request to:", url);
       const result = await apiRequest(url, requestData);
       console.log("✅ Auth successful, redirecting...");
-      
+
       // ✅ UPDATED: Enhanced redirection after successful auth
       await redirectUser(data.role);
-      
+
     } catch (err: unknown) {
       const error = err as Error;
       console.error("❌ Auth error:", error);
@@ -200,7 +204,7 @@ export default function AuthForm({ type }: Props) {
               🎓 Department Number <span className="text-red-500">*</span>
             </label>
             <input
-              {...register("dno", { 
+              {...register("dno", {
                 required: watchRole === "student" ? "D.No is required for students" : false,
               })}
               id="dno"
@@ -222,7 +226,7 @@ export default function AuthForm({ type }: Props) {
               👨‍🏫 Staff ID <span className="text-red-500">*</span>
             </label>
             <input
-              {...register("staffId", { 
+              {...register("staffId", {
                 required: watchRole === "staff" ? "Staff ID is required for staff" : false,
               })}
               id="staffId"
@@ -244,7 +248,7 @@ export default function AuthForm({ type }: Props) {
               👨‍💼 Admin Email <span className="text-red-500">*</span>
             </label>
             <input
-              {...register("email", { 
+              {...register("email", {
                 required: watchRole === "admin" ? "Email is required for admin" : false,
                 pattern: {
                   value: /^\S+@\S+$/i,
@@ -294,7 +298,7 @@ export default function AuthForm({ type }: Props) {
               🎓 Department Number <span className="text-red-500">*</span>
             </label>
             <input
-              {...register("dno", { 
+              {...register("dno", {
                 required: watchRole === "student" ? "D.No is required for students" : false,
                 pattern: {
                   value: /^[0-9]{2}[A-Z]{3}[0-9]{3}$/,
@@ -323,7 +327,7 @@ export default function AuthForm({ type }: Props) {
               👨‍🏫 Staff ID <span className="text-red-500">*</span>
             </label>
             <input
-              {...register("staffId", { 
+              {...register("staffId", {
                 required: watchRole === "staff" ? "Staff ID is required for staff" : false,
                 pattern: {
                   value: /^[0-9]{2}[A-Z]{3}[0-9]{2,3}$/,
@@ -389,8 +393,8 @@ export default function AuthForm({ type }: Props) {
               🏫 Department {watchRole === "student" ? <span className="text-red-500">*</span> : <span className="text-gray-500">(Optional)</span>}
             </label>
             <input
-              {...register("department", { 
-                required: watchRole === "student" ? "Department is required for students" : false 
+              {...register("department", {
+                required: watchRole === "student" ? "Department is required for students" : false
               })}
               id="department"
               placeholder="Enter your department name"
@@ -492,24 +496,24 @@ export default function AuthForm({ type }: Props) {
         {isMenuOpen && (
           <div className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md shadow-xl border-t border-gray-200/50 animate-slideDown">
             <div className="flex flex-col p-5 space-y-4">
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="text-gray-700 hover:text-green-600 font-bold py-3 px-4 rounded-xl hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 text-center text-lg tracking-wide border-2 border-transparent hover:border-green-200"
                 onClick={() => setIsMenuOpen(false)}
               >
                 🏠 Home Portal
               </Link>
               {type === "login" ? (
-                <Link 
-                  href="/signup" 
+                <Link
+                  href="/signup"
                   className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl font-black hover:from-green-600 hover:to-emerald-700 transition-all duration-300 text-center text-lg tracking-wider shadow-lg hover:shadow-xl transform hover:scale-105"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   🚀 Create Account
                 </Link>
               ) : (
-                <Link 
-                  href="/login" 
+                <Link
+                  href="/login"
                   className="bg-white text-green-600 border-2 border-green-600 px-6 py-4 rounded-xl font-black hover:bg-green-50 transition-all duration-300 text-center text-lg tracking-wider shadow-lg hover:shadow-xl transform hover:scale-105"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -536,8 +540,8 @@ export default function AuthForm({ type }: Props) {
               {type === "login" ? "Welcome Back!" : "Join Our Community"}
             </h2>
             <p className="text-gray-600 font-medium tracking-wide text-lg">
-              {type === "login" 
-                ? "🔐 Secure access to your account" 
+              {type === "login"
+                ? "🔐 Secure access to your account"
                 : "🌟 Begin your culinary journey with us"
               }
             </p>
@@ -568,8 +572,8 @@ export default function AuthForm({ type }: Props) {
               <label htmlFor="role" className="block text-sm font-black text-gray-800 mb-2 tracking-wider uppercase">
                 👤 ACCOUNT TYPE <span className="text-red-500">*</span>
               </label>
-              <select 
-                {...register("role", { required: "Please select your account type" })} 
+              <select
+                {...register("role", { required: "Please select your account type" })}
                 id="role"
                 className="w-full px-5 py-4 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-300 focus:border-green-400 transition-all duration-300 bg-white text-gray-900 font-semibold tracking-wide shadow-sm hover:shadow-md"
               >
@@ -611,7 +615,7 @@ export default function AuthForm({ type }: Props) {
                     📧 EMAIL ADDRESS {watchRole === "admin" ? <span className="text-red-500">*</span> : <span className="text-gray-500 font-normal">(Optional)</span>}
                   </label>
                   <input
-                    {...register("email", { 
+                    {...register("email", {
                       required: watchRole === "admin" ? "Email is required for admin" : false,
                       pattern: {
                         value: /^\S+@\S+$/i,
@@ -649,7 +653,7 @@ export default function AuthForm({ type }: Props) {
                 🔒 PASSWORD <span className="text-red-500">*</span>
               </label>
               <input
-                {...register("password", { 
+                {...register("password", {
                   required: "Password is mandatory",
                   minLength: {
                     value: 6,
@@ -684,7 +688,7 @@ export default function AuthForm({ type }: Props) {
                 <>
                   <span className="text-xl">{type === "login" ? "🔓" : "🎉"}</span>
                   <span className="font-black">
-                    {type === "login" 
+                    {type === "login"
                       ? (hasPendingOrder() ? "LOGIN & ORDER NOW" : "ACCESS MY ACCOUNT")
                       : "LAUNCH MY ACCOUNT"
                     }
